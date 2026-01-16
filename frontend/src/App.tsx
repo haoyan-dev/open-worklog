@@ -417,6 +417,21 @@ export default function App() {
               />
             )
           )}
+          {!isCreating && !isLoading && (
+            <button
+              className="log-card add-log-card"
+              onClick={() => {
+                setEditingEntry(null);
+                setIsCreating(true);
+              }}
+              aria-label="Add log entry"
+            >
+              <div className="add-log-card-content">
+                <span className="add-log-icon">➕</span>
+                <span className="add-log-text">Add</span>
+              </div>
+            </button>
+          )}
         </section>
       </main>
       <button

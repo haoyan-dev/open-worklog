@@ -132,6 +132,44 @@ body {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
 }
 
+.add-log-card {
+  cursor: pointer;
+  border: 2px dashed #d9dce7;
+  background: #fafbfc;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.add-log-card:hover {
+  border-color: #1f57ff;
+  background: #f0f4ff;
+  box-shadow: 0 6px 16px rgba(31, 87, 255, 0.1);
+}
+
+.add-log-card-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5b6070;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.add-log-card:hover .add-log-card-content {
+  color: #1f57ff;
+}
+
+.add-log-icon {
+  font-size: 20px;
+}
+
+.add-log-text {
+  font-size: 16px;
+}
+
 .log-card-header {
   display: flex;
   justify-content: space-between;
