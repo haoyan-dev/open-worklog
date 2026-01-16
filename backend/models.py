@@ -19,19 +19,35 @@ class TimerStatus(str, Enum):
     PAUSED = "paused"
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    log_entries = relationship("LogEntry", back_populates="project_rel")
+
+
 class LogEntry(Base):
     __tablename__ = "log_entries"
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, index=True)
     category = Column(SqlEnum(Category), nullable=False)
-    project = Column(String(200), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
     task = Column(Text, nullable=False)
     hours = Column(Float, nullable=False)  # Total hours = TimeSpan hours + additional_hours
     additional_hours = Column(Float, nullable=False, default=0.0)  # Manually added hours
     status = Column(String(50), nullable=True, default="Completed")
     notes = Column(Text, nullable=True)
     timespans = relationship("TimeSpan", back_populates="log_entry", cascade="all, delete-orphan")
+    project_rel = relationship("Project", back_populates="log_entries")
+
+    @property
+    def project_name(self) -> str | None:
+        """Get project name from relationship for API responses."""
+        return self.project_rel.name if self.project_rel else None
 
 
 class TimeSpan(Base):
@@ -54,5 +70,5 @@ class Timer(Base):
     status = Column(SqlEnum(TimerStatus), nullable=False)
     date = Column(Date, nullable=True)
     category = Column(SqlEnum(Category), nullable=True)
-    project = Column(String(200), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     task = Column(Text, nullable=True)

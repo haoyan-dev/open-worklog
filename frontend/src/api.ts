@@ -1,6 +1,7 @@
 import type {
   LogEntry,
   LogEntryCreate,
+  Project,
   Timer,
   TimerStartRequest,
   TimeSpan,
@@ -101,4 +102,26 @@ export function adjustTimeSpan(
     method: "POST",
     body: JSON.stringify({ hours }),
   });
+}
+
+// Project API functions
+export function fetchProjects(search?: string): Promise<Project[]> {
+  const url = search
+    ? `${API_BASE}/projects?search=${encodeURIComponent(search)}`
+    : `${API_BASE}/projects`;
+  return request<Project[]>(url);
+}
+
+export function createProject(
+  name: string,
+  description?: string
+): Promise<Project> {
+  return request<Project>(`${API_BASE}/projects`, {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export function getProject(id: number): Promise<Project> {
+  return request<Project>(`${API_BASE}/projects/${id}`);
 }

@@ -1,5 +1,7 @@
 from datetime import date
 
+from typing import Optional
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -8,7 +10,6 @@ import crud
 import models
 import schemas
 from db import Base, engine, get_db
-from fastapi import HTTPException
 
 Base.metadata.create_all(bind=engine)
 
@@ -125,3 +126,28 @@ def adjust_timespan(
     if not timespan:
         raise HTTPException(status_code=404, detail="TimeSpan not found")
     return timespan
+
+
+# Project API endpoints
+@app.get("/api/v1/projects", response_model=list[schemas.ProjectRead])
+def get_projects(
+    search: Optional[str] = Query(None, description="Search term to filter projects by name"),
+    db: Session = Depends(get_db),
+):
+    return crud.get_projects(db, search)
+
+
+@app.post("/api/v1/projects", response_model=schemas.ProjectRead)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    try:
+        return crud.create_project(db, project)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/v1/projects/{project_id}", response_model=schemas.ProjectRead)
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = crud.get_project(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project

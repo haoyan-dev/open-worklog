@@ -1,15 +1,19 @@
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func
+from typing import Optional
+
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from models import LogEntry, TimeSpan, Timer, TimerStatus
-from schemas import LogEntryCreate, LogEntryUpdate, TimeSpanCreate, TimerStartRequest
+from models import LogEntry, Project, TimeSpan, Timer, TimerStatus
+from schemas import LogEntryCreate, LogEntryUpdate, ProjectCreate, TimeSpanCreate, TimerStartRequest
 
 
 def get_logs_by_date(db: Session, target_date: date):
+    from sqlalchemy.orm import joinedload
     return (
         db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
         .filter(LogEntry.date == target_date)
         .order_by(LogEntry.id.asc())
         .all()
@@ -17,7 +21,13 @@ def get_logs_by_date(db: Session, target_date: date):
 
 
 def get_log(db: Session, log_id: int):
-    return db.query(LogEntry).filter(LogEntry.id == log_id).first()
+    from sqlalchemy.orm import joinedload
+    return (
+        db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
+        .filter(LogEntry.id == log_id)
+        .first()
+    )
 
 
 def create_log(db: Session, log: LogEntryCreate):
@@ -37,6 +47,14 @@ def create_log(db: Session, log: LogEntryCreate):
     
     db.commit()
     db.refresh(entry)
+    # Eager load project relationship
+    from sqlalchemy.orm import joinedload
+    entry = (
+        db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
+        .filter(LogEntry.id == entry.id)
+        .first()
+    )
     return entry
 
 
@@ -61,6 +79,14 @@ def update_log(db: Session, log_id: int, log: LogEntryUpdate):
     
     db.commit()
     db.refresh(entry)
+    # Eager load project relationship
+    from sqlalchemy.orm import joinedload
+    entry = (
+        db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
+        .filter(LogEntry.id == entry.id)
+        .first()
+    )
     return entry
 
 
@@ -94,6 +120,47 @@ def get_stats(db: Session, start_date: date, end_date: date):
         day["category_hours"][row.category.value] = float(row.hours)
 
     return list(stats_map.values())
+
+
+# Project CRUD operations
+def get_projects(db: Session, search: Optional[str] = None):
+    """Get all projects, optionally filtered by search term."""
+    query = db.query(Project)
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(Project.name.ilike(search_term))
+    return query.order_by(Project.name.asc()).all()
+
+
+def get_project(db: Session, project_id: int):
+    """Get a single project by ID."""
+    return db.query(Project).filter(Project.id == project_id).first()
+
+
+def create_project(db: Session, project: ProjectCreate):
+    """Create a new project. Enforces uniqueness of project name."""
+    # Check if project with same name already exists
+    existing = db.query(Project).filter(Project.name == project.name).first()
+    if existing:
+        raise ValueError(f"Project with name '{project.name}' already exists")
+    
+    project_dict = project.dict()
+    new_project = Project(**project_dict)
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+    return new_project
+
+
+def search_projects(db: Session, query: str):
+    """Search projects by name (case-insensitive partial match)."""
+    search_term = f"%{query.lower()}%"
+    return (
+        db.query(Project)
+        .filter(Project.name.ilike(search_term))
+        .order_by(Project.name.asc())
+        .all()
+    )
 
 
 # TimeSpan CRUD operations
@@ -190,13 +257,13 @@ def create_timer(db: Session, request: TimerStartRequest):
     
     # If no log_entry_id provided, create new log entry
     if not log_entry_id:
-        if not all([request.date, request.category, request.project, request.task]):
+        if not all([request.date, request.category, request.project_id, request.task]):
             raise ValueError("Missing required fields for new log entry")
         
         new_entry = LogEntry(
             date=request.date,
             category=request.category,
-            project=request.project,
+            project_id=request.project_id,
             task=request.task,
             hours=0.0,
             status="Completed",

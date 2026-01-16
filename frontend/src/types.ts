@@ -6,11 +6,19 @@ export type Category =
 
 export type TimerStatus = "running" | "paused";
 
+export interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string; // ISO datetime string
+}
+
 export interface LogEntry {
   id: number;
   date: string; // ISO date string (YYYY-MM-DD)
   category: Category;
-  project: string;
+  project_id: number;
+  project_name?: string; // Populated from backend for display
   task: string;
   hours: number; // Total hours = TimeSpan hours + additional_hours
   additional_hours: number; // Manually added hours
@@ -33,14 +41,14 @@ export interface Timer {
   status: TimerStatus;
   date?: string; // ISO date string
   category?: Category;
-  project?: string;
+  project_id?: number;
   task?: string;
 }
 
 export interface LogEntryCreate {
   date: string;
   category: Category;
-  project: string;
+  project_id: number;
   task: string;
   hours: number; // Total hours (calculated on backend)
   additional_hours: number; // Manually added hours
@@ -85,6 +93,6 @@ export interface TimerStartRequest {
   log_entry_id?: number;
   date?: string;
   category?: Category;
-  project?: string;
+  project_id?: number;
   task?: string;
 }

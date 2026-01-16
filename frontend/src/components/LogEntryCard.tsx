@@ -26,7 +26,7 @@ export default function LogEntryCard({
     <article className="log-card" onClick={() => onEdit(entry)}>
       <header className="log-card-header">
         <div>
-          <div className="log-project">{entry.project}</div>
+          <div className="log-project">{entry.project_name || `Project #${entry.project_id}`}</div>
           <span
             className="log-category"
             style={{ background: CATEGORY_COLORS[entry.category] || "#999" }}

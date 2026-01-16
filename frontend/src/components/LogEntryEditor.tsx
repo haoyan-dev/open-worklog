@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import type { LogEntryEditorProps, LogEntryCreate, Category, TimeSpan } from "../types";
 import TimeSpanList from "./TimeSpanList";
+import ProjectAutocomplete from "./ProjectAutocomplete";
 
 const CATEGORIES: Category[] = [
   "Routine Work",
@@ -51,7 +52,7 @@ export default function LogEntryEditor({
     entry || {
       date,
       category: "Routine Work",
-      project: "",
+      project_id: 0,
       task: "",
       hours: 0,
       additional_hours: 0,
@@ -66,7 +67,7 @@ export default function LogEntryEditor({
       setFormState({
         date: entry.date,
         category: entry.category,
-        project: entry.project,
+        project_id: entry.project_id,
         task: entry.task,
         hours: entry.hours,
         additional_hours: entry.additional_hours || 0,
@@ -107,9 +108,11 @@ export default function LogEntryEditor({
       <div className="log-editor-row">
         <label>
           Project
-          <input
-            value={formState.project}
-            onChange={updateField("project")}
+          <ProjectAutocomplete
+            value={formState.project_id || null}
+            onChange={(projectId) => {
+              setFormState((prev) => ({ ...prev, project_id: projectId }));
+            }}
             required
           />
         </label>

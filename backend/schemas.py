@@ -6,10 +6,27 @@ from pydantic import BaseModel, Field
 from models import Category, TimerStatus
 
 
+class ProjectBase(BaseModel):
+    name: str = Field(..., max_length=200)
+    description: Optional[str] = None
+
+
+class ProjectCreate(ProjectBase):
+    pass
+
+
+class ProjectRead(ProjectBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class LogEntryBase(BaseModel):
     date: date
     category: Category
-    project: str = Field(..., max_length=200)
+    project_id: int
     task: str
     hours: float = Field(..., ge=0)  # Total hours (calculated: TimeSpan hours + additional_hours)
     additional_hours: float = Field(default=0.0, ge=0)  # Manually added hours
@@ -27,6 +44,7 @@ class LogEntryUpdate(LogEntryBase):
 
 class LogEntryRead(LogEntryBase):
     id: int
+    project_name: Optional[str] = None  # Populated from relationship
 
     class Config:
         from_attributes = True
@@ -67,7 +85,7 @@ class TimerRead(BaseModel):
     status: TimerStatus
     date: Optional[date] = None
     category: Optional[Category] = None
-    project: Optional[str] = None
+    project_id: Optional[int] = None
     task: Optional[str] = None
 
     class Config:
@@ -78,6 +96,6 @@ class TimerStartRequest(BaseModel):
     log_entry_id: Optional[int] = None
     date: Optional[date] = None
     category: Optional[Category] = None
-    project: Optional[str] = None
+    project_id: Optional[int] = None
     task: Optional[str] = None
 
