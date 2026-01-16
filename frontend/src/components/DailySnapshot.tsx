@@ -1,13 +1,14 @@
 import React from "react";
+import type { DailySnapshotProps } from "../types";
 
-const CATEGORY_COLORS = {
+const CATEGORY_COLORS: Record<string, string> = {
   "Routine Work": "#6c8cff",
   OKR: "#ff8c5a",
   "Team Contribution": "#4fc37d",
   "Company Contribution": "#d18cff",
 };
 
-function statusColor(totalHours) {
+function statusColor(totalHours: number): string {
   if (totalHours >= 7) {
     return "status-good";
   }
@@ -17,8 +18,14 @@ function statusColor(totalHours) {
   return "status-neutral";
 }
 
-export default function DailySnapshot({ totalHours, categoryHours }) {
-  const total = Object.values(categoryHours).reduce((sum, value) => sum + value, 0);
+export default function DailySnapshot({
+  totalHours,
+  categoryHours,
+}: DailySnapshotProps) {
+  const total = Object.values(categoryHours).reduce(
+    (sum, value) => sum + value,
+    0
+  );
   return (
     <section className="snapshot">
       <div className="snapshot-block">

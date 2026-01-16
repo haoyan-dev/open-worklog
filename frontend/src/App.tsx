@@ -6,20 +6,21 @@ import {
   deleteLog,
   fetchLogsByDate,
   updateLog,
-} from "./api.js";
-import DateNavigator from "./components/DateNavigator.jsx";
-import DailySnapshot from "./components/DailySnapshot.jsx";
-import LogEntryCard from "./components/LogEntryCard.jsx";
-import LogEntryEditor from "./components/LogEntryEditor.jsx";
+} from "./api";
+import DateNavigator from "./components/DateNavigator";
+import DailySnapshot from "./components/DailySnapshot";
+import LogEntryCard from "./components/LogEntryCard";
+import LogEntryEditor from "./components/LogEntryEditor";
+import type { LogEntry, LogEntryCreate } from "./types";
 
-function formatDate(value) {
+function formatDate(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
 export default function App() {
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [editingEntry, setEditingEntry] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [editingEntry, setEditingEntry] = useState<LogEntry | null>(null);
+  const [isCreating, setIsCreating] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   const dateString = formatDate(selectedDate);
@@ -28,12 +29,12 @@ export default function App() {
     isLoading,
     isError,
     error,
-  } = useQuery({
+  } = useQuery<LogEntry[]>({
     queryKey: ["logs", dateString],
     queryFn: () => fetchLogsByDate(dateString),
   });
 
-  const createMutation = useMutation({
+  const createMutation = useMutation<LogEntry, Error, LogEntryCreate>({
     mutationFn: createLog,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
@@ -41,7 +42,11 @@ export default function App() {
     },
   });
 
-  const updateMutation = useMutation({
+  const updateMutation = useMutation<
+    LogEntry,
+    Error,
+    { id: number; payload: LogEntryCreate }
+  >({
     mutationFn: ({ id, payload }) => updateLog(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
@@ -49,7 +54,7 @@ export default function App() {
     },
   });
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useMutation<void, Error, number>({
     mutationFn: deleteLog,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
@@ -57,7 +62,7 @@ export default function App() {
   });
 
   const summary = useMemo(() => {
-    const categoryHours = {};
+    const categoryHours: Record<string, number> = {};
     let totalHours = 0;
     logs.forEach((entry) => {
       totalHours += entry.hours;
@@ -67,7 +72,7 @@ export default function App() {
     return { totalHours, categoryHours };
   }, [logs]);
 
-  const handleSave = (payload) => {
+  const handleSave = (payload: LogEntryCreate) => {
     if (editingEntry) {
       updateMutation.mutate({ id: editingEntry.id, payload });
       return;
@@ -91,7 +96,7 @@ export default function App() {
           />
         ) : null}
         {isLoading ? <p>Loading logs...</p> : null}
-        {isError ? <p className="error">{error.message}</p> : null}
+        {isError ? <p className="error">{error?.message}</p> : null}
         <section className="log-list">
           {logs.map((entry) =>
             editingEntry && editingEntry.id === entry.id ? (

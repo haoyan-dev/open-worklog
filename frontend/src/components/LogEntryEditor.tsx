@@ -1,14 +1,20 @@
 import React, { useState } from "react";
+import type { LogEntryEditorProps, LogEntryCreate, Category } from "../types";
 
-const CATEGORIES = [
+const CATEGORIES: Category[] = [
   "Routine Work",
   "OKR",
   "Team Contribution",
   "Company Contribution",
 ];
 
-export default function LogEntryEditor({ entry, date, onSave, onCancel }) {
-  const [formState, setFormState] = useState(
+export default function LogEntryEditor({
+  entry,
+  date,
+  onSave,
+  onCancel,
+}: LogEntryEditorProps) {
+  const [formState, setFormState] = useState<LogEntryCreate>(
     entry || {
       date,
       category: "Routine Work",
@@ -20,13 +26,15 @@ export default function LogEntryEditor({ entry, date, onSave, onCancel }) {
     }
   );
 
-  const updateField = (field) => (event) => {
+  const updateField = (field: keyof LogEntryCreate) => (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const value =
       field === "hours" ? Number(event.target.value) : event.target.value;
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSave({ ...formState, date });
   };
@@ -70,7 +78,7 @@ export default function LogEntryEditor({ entry, date, onSave, onCancel }) {
       <label>
         Task
         <textarea
-          rows="3"
+          rows={3}
           value={formState.task}
           onChange={updateField("task")}
           required
@@ -79,7 +87,7 @@ export default function LogEntryEditor({ entry, date, onSave, onCancel }) {
       <label>
         Notes
         <textarea
-          rows="3"
+          rows={3}
           value={formState.notes || ""}
           onChange={updateField("notes")}
         />

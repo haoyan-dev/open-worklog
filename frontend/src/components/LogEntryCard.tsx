@@ -1,14 +1,19 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
+import type { LogEntryCardProps } from "../types";
 
-const CATEGORY_COLORS = {
+const CATEGORY_COLORS: Record<string, string> = {
   "Routine Work": "#6c8cff",
   OKR: "#ff8c5a",
   "Team Contribution": "#4fc37d",
   "Company Contribution": "#d18cff",
 };
 
-export default function LogEntryCard({ entry, onEdit, onDelete }) {
+export default function LogEntryCard({
+  entry,
+  onEdit,
+  onDelete,
+}: LogEntryCardProps) {
   return (
     <article className="log-card" onClick={() => onEdit(entry)}>
       <header className="log-card-header">
