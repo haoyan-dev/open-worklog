@@ -603,6 +603,245 @@ body {
   margin-bottom: 12px;
 }
 
+/* TimeSpan Session Styles */
+.timespan-session {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #eef0f5;
+}
+
+.timespan-session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timespan-session-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+}
+
+.timespan-session-index {
+  font-weight: 600;
+  font-size: 12px;
+  color: #7d8496;
+  min-width: 24px;
+}
+
+.timespan-session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.timespan-session-time {
+  font-size: 12px;
+  color: #5b6070;
+}
+
+.timespan-session-duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2330;
+}
+
+.timespan-session-edit-btn {
+  padding: 6px 12px;
+  border: 1px solid #d9dce7;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5b6070;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timespan-session-edit-btn:hover {
+  background: #f5f6fa;
+  border-color: #c5c9d6;
+}
+
+.timespan-session-timeline-container {
+  position: relative;
+  width: 100%;
+  height: 80px;
+  background: #fafbfc;
+  border-radius: 6px;
+  border: 1px solid #eef0f5;
+  overflow: hidden;
+}
+
+.timespan-session-timeline {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.timespan-session-hour-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #e5e7eb;
+  pointer-events: none;
+}
+
+.timespan-session-hour-marker:nth-child(4n) {
+  background: #d1d5db;
+  width: 2px;
+}
+
+.timespan-session-hour-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 500;
+  transform: translateX(-50%);
+}
+
+.timespan-session-bar {
+  position: absolute;
+  top: 20px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+
+.timespan-session-bar.running {
+  background: linear-gradient(135deg, #4fc37d 0%, #3aa86a 100%);
+  box-shadow: 0 2px 8px rgba(79, 195, 125, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.timespan-session-bar.editing {
+  border: 2px dashed #667eea;
+  background: rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.timespan-session-bar-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1f2330;
+  white-space: nowrap;
+  padding: 0 4px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.timespan-session-handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+}
+
+.timespan-session-handle:active {
+  cursor: grabbing;
+  transform: translateY(-50%) scale(1.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.timespan-session-handle-start {
+  left: -8px;
+}
+
+.timespan-session-handle-end {
+  right: -8px;
+}
+
+.timespan-session-handle-dot {
+  width: 6px;
+  height: 6px;
+  background: #667eea;
+  border-radius: 50%;
+}
+
+.timespan-session-handle:hover {
+  background: #f5f6fa;
+  border-color: #764ba2;
+}
+
+.timespan-session-handle:hover .timespan-session-handle-dot {
+  background: #764ba2;
+}
+
+.timespan-session-adjust {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.timespan-session-adjust-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.timespan-session-adjust-btn {
+  padding: 4px 8px;
+  border: 1px solid #d9dce7;
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.timespan-session-adjust-btn.add {
+  color: #4fc37d;
+  border-color: #4fc37d;
+}
+
+.timespan-session-adjust-btn.add:hover {
+  background: rgba(79, 195, 125, 0.1);
+}
+
+.timespan-session-adjust-btn.subtract {
+  color: #ff8c5a;
+  border-color: #ff8c5a;
+}
+
+.timespan-session-adjust-btn.subtract:hover {
+  background: rgba(255, 140, 90, 0.1);
+}
+
 /* Active Timer Indicator */
 .log-card:has(.timer-indicator.running) {
   border: 2px solid #4fc37d;

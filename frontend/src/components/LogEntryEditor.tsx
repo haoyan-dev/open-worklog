@@ -41,6 +41,7 @@ export default function LogEntryEditor({
   onCancel,
   timespans = [],
   onTimeSpanAdjust,
+  onTimeSpanUpdate,
 }: LogEntryEditorProps) {
   // Calculate hours from TimeSpans (primary source)
   const timespanHours = useMemo(
@@ -207,6 +208,7 @@ export default function LogEntryEditor({
             timespans={timespans} 
             collapsed={false}
             onAdjust={onTimeSpanAdjust}
+            onUpdate={onTimeSpanUpdate}
           />
         </div>
       )}

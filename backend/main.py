@@ -128,6 +128,18 @@ def adjust_timespan(
     return timespan
 
 
+@app.put("/api/v1/timespans/{timespan_id}", response_model=schemas.TimeSpanRead)
+def update_timespan(
+    timespan_id: int,
+    request: schemas.TimeSpanUpdate,
+    db: Session = Depends(get_db),
+):
+    timespan = crud.update_timespan(db, timespan_id, request)
+    if not timespan:
+        raise HTTPException(status_code=404, detail="TimeSpan not found")
+    return timespan
+
+
 # Project API endpoints
 @app.get("/api/v1/projects", response_model=list[schemas.ProjectRead])
 def get_projects(

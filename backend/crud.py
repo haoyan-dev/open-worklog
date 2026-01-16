@@ -6,7 +6,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from models import LogEntry, Project, TimeSpan, Timer, TimerStatus
-from schemas import LogEntryCreate, LogEntryUpdate, ProjectCreate, TimeSpanCreate, TimerStartRequest
+from schemas import LogEntryCreate, LogEntryUpdate, ProjectCreate, TimeSpanCreate, TimeSpanUpdate, TimerStartRequest
 
 
 def get_logs_by_date(db: Session, target_date: date):
@@ -197,6 +197,53 @@ def adjust_timespan(db: Session, timespan_id: int, hours: float):
     if new_end <= timespan.start_timestamp:
         new_end = timespan.start_timestamp + timedelta(minutes=15)  # Minimum 0.25h
     
+    timespan.end_timestamp = new_end
+    db.commit()
+    db.refresh(timespan)
+    
+    # Recalculate total hours for the log entry
+    entry = get_log(db, timespan.log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
+        db.refresh(entry)
+    
+    return timespan
+
+
+def update_timespan(db: Session, timespan_id: int, update: TimeSpanUpdate):
+    """Update TimeSpan start_timestamp and end_timestamp.
+    Rounds to nearest 0.25 hour increment and ensures minimum duration of 0.25h."""
+    timespan = get_timespan(db, timespan_id)
+    if not timespan:
+        return None
+    
+    # Round timestamps to nearest 0.25h increment
+    def round_to_quarter_hour(dt: datetime) -> datetime:
+        """Round datetime to nearest 0.25 hour (15 minutes)."""
+        total_minutes = dt.hour * 60 + dt.minute + dt.second / 60.0
+        rounded_minutes = round(total_minutes / 15.0) * 15
+        hours = int(rounded_minutes // 60)
+        minutes = int(rounded_minutes % 60)
+        return dt.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    
+    new_start = round_to_quarter_hour(update.start_timestamp)
+    new_end = update.end_timestamp
+    if new_end:
+        new_end = round_to_quarter_hour(new_end)
+        
+        # Validate: end must be after start
+        if new_end <= new_start:
+            # Ensure minimum duration of 0.25h
+            new_end = new_start + timedelta(minutes=15)
+        
+        # Calculate duration
+        duration = (new_end - new_start).total_seconds() / 3600.0
+        if duration < 0.25:
+            # Ensure minimum duration of 0.25h
+            new_end = new_start + timedelta(minutes=15)
+    
+    timespan.start_timestamp = new_start
     timespan.end_timestamp = new_end
     db.commit()
     db.refresh(timespan)

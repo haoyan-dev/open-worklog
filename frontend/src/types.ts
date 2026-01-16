@@ -87,6 +87,7 @@ export interface LogEntryEditorProps {
   onCancel: () => void;
   timespans?: TimeSpan[];
   onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
+  onTimeSpanUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
 }
 
 export interface TimerStartRequest {

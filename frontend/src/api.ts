@@ -104,6 +104,20 @@ export function adjustTimeSpan(
   });
 }
 
+export function updateTimeSpan(
+  timespanId: number,
+  startTimestamp: string,
+  endTimestamp?: string
+): Promise<TimeSpan> {
+  return request<TimeSpan>(`${API_BASE}/timespans/${timespanId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      start_timestamp: startTimestamp,
+      end_timestamp: endTimestamp,
+    }),
+  });
+}
+
 // Project API functions
 export function fetchProjects(search?: string): Promise<Project[]> {
   const url = search

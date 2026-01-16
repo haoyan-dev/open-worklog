@@ -78,6 +78,11 @@ class TimeSpanAdjustRequest(BaseModel):
     hours: float  # Hours to add (positive) or subtract (negative) from end_timestamp
 
 
+class TimeSpanUpdate(BaseModel):
+    start_timestamp: datetime
+    end_timestamp: Optional[datetime] = None
+
+
 class TimerRead(BaseModel):
     id: int
     log_entry_id: Optional[int] = None
