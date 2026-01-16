@@ -25,8 +25,18 @@ def create_log(db: Session, log: LogEntryCreate):
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    # Note: Hours are calculated from TimeSpans only when timer stops
-    # Manual hours input takes precedence
+    
+    # If TimeSpans exist, calculate hours from them (primary source)
+    # Otherwise, use manual input (round to 0.25)
+    calculated_hours = calculate_entry_hours(db, entry.id)
+    if calculated_hours > 0:
+        entry.hours = calculated_hours
+    else:
+        # No TimeSpans, use manual input (round to 0.25)
+        entry.hours = round(entry.hours * 4) / 4.0
+    
+    db.commit()
+    db.refresh(entry)
     return entry
 
 
@@ -34,12 +44,27 @@ def update_log(db: Session, log_id: int, log: LogEntryUpdate):
     entry = get_log(db, log_id)
     if not entry:
         return None
+    
+    # Store the manual hours input before updating
+    manual_hours = log.dict().get("hours", entry.hours)
+    
+    # Update all fields
     for field, value in log.dict().items():
         setattr(entry, field, value)
     db.commit()
     db.refresh(entry)
-    # Note: Hours are calculated from TimeSpans only when timer stops
-    # Manual hours input takes precedence
+    
+    # If TimeSpans exist, calculate hours from them (primary source)
+    # Otherwise, use manual input
+    calculated_hours = calculate_entry_hours(db, entry.id)
+    if calculated_hours > 0:
+        entry.hours = calculated_hours
+    else:
+        # No TimeSpans, use manual input (round to 0.25)
+        entry.hours = round(manual_hours * 4) / 4.0
+    
+    db.commit()
+    db.refresh(entry)
     return entry
 
 
@@ -86,7 +111,8 @@ def get_timespans_for_entry(db: Session, log_entry_id: int):
 
 
 def calculate_entry_hours(db: Session, log_entry_id: int) -> float:
-    """Calculate total hours from all TimeSpans for an entry."""
+    """Calculate total hours from all TimeSpans for an entry.
+    Rounds to nearest 0.25 hour increment."""
     timespans = get_timespans_for_entry(db, log_entry_id)
     total_hours = 0.0
     now = datetime.utcnow()
@@ -95,6 +121,10 @@ def calculate_entry_hours(db: Session, log_entry_id: int) -> float:
         end_time = span.end_timestamp if span.end_timestamp else now
         duration = (end_time - span.start_timestamp).total_seconds() / 3600.0
         total_hours += duration
+    
+    # Round to nearest 0.25 hour increment
+    if total_hours > 0:
+        total_hours = round(total_hours * 4) / 4.0
     
     return total_hours
 

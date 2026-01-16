@@ -11,7 +11,7 @@ class LogEntryBase(BaseModel):
     category: Category
     project: str = Field(..., max_length=200)
     task: str
-    hours: float = Field(..., gt=0)
+    hours: float = Field(..., ge=0)  # Allow 0 hours (default when no TimeSpans)
     status: Optional[str] = "Completed"
     notes: Optional[str] = None
 

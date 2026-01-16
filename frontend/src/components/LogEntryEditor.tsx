@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { LogEntryEditorProps, LogEntryCreate, Category, TimeSpan } from "../types";
 import TimeSpanList from "./TimeSpanList";
 
@@ -11,6 +11,28 @@ const CATEGORIES: Category[] = [
 
 const HOUR_BUTTONS = [0.25, 0.5, 1, 2, 4, 8];
 
+// Calculate hours from TimeSpans, rounded to 0.25 increments
+function calculateHoursFromTimeSpans(timespans: TimeSpan[]): number {
+  if (timespans.length === 0) return 0;
+  
+  const totalHours = timespans.reduce((total, span) => {
+    const start = new Date(span.start_timestamp).getTime();
+    const end = span.end_timestamp
+      ? new Date(span.end_timestamp).getTime()
+      : Date.now();
+    const duration = (end - start) / (1000 * 60 * 60); // Convert to hours
+    return total + duration;
+  }, 0);
+  
+  // Round to nearest 0.25 hour increment
+  return Math.round(totalHours * 4) / 4;
+}
+
+// Round to nearest 0.25 hour increment
+function roundToQuarterHour(hours: number): number {
+  return Math.round(hours * 4) / 4;
+}
+
 export default function LogEntryEditor({
   entry,
   date,
@@ -18,29 +40,50 @@ export default function LogEntryEditor({
   onCancel,
   timespans = [],
 }: LogEntryEditorProps & { timespans?: TimeSpan[] }) {
+  // Calculate hours from TimeSpans if they exist
+  const calculatedHours = useMemo(
+    () => calculateHoursFromTimeSpans(timespans),
+    [timespans]
+  );
+  
+  const hasTimeSpans = timespans.length > 0;
+  
   const [formState, setFormState] = useState<LogEntryCreate>(
     entry || {
       date,
       category: "Routine Work",
       project: "",
       task: "",
-      hours: 1,
+      hours: 0,
       status: "Completed",
       notes: "",
     }
   );
 
+  // Update hours when calculated hours change or when entry changes
+  useEffect(() => {
+    if (hasTimeSpans && calculatedHours > 0) {
+      setFormState((prev) => ({ ...prev, hours: calculatedHours }));
+    } else if (entry) {
+      setFormState((prev) => ({ ...prev, hours: entry.hours || 0 }));
+    }
+  }, [calculatedHours, hasTimeSpans, entry]);
+
   const updateField = (field: keyof LogEntryCreate) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const value =
-      field === "hours" ? Number(event.target.value) : event.target.value;
+      field === "hours" ? roundToQuarterHour(Number(event.target.value)) : event.target.value;
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSave({ ...formState, date });
+    // If TimeSpans exist, use calculated hours; otherwise use manual input (rounded)
+    const finalHours = hasTimeSpans && calculatedHours > 0 
+      ? calculatedHours 
+      : roundToQuarterHour(formState.hours);
+    onSave({ ...formState, hours: finalHours, date });
   };
 
   return (
@@ -69,30 +112,42 @@ export default function LogEntryEditor({
         </label>
         <label>
           Hours
-          <div className="hours-input-group">
-            <input
-              type="number"
-              min="0.25"
-              step="0.25"
-              value={formState.hours}
-              onChange={updateField("hours")}
-              required
-            />
-            <div className="hour-buttons">
-              {HOUR_BUTTONS.map((hours) => (
-                <button
-                  key={hours}
-                  type="button"
-                  className="hour-button"
-                  onClick={() =>
-                    setFormState((prev) => ({ ...prev, hours }))
-                  }
-                >
-                  {hours}h
-                </button>
-              ))}
+          {hasTimeSpans && calculatedHours > 0 ? (
+            <div className="hours-display">
+              <input
+                type="number"
+                value={calculatedHours.toFixed(2)}
+                readOnly
+                className="hours-readonly"
+              />
+              <span className="hours-source">(calculated from time spans)</span>
             </div>
-          </div>
+          ) : (
+            <div className="hours-input-group">
+              <input
+                type="number"
+                min="0"
+                step="0.25"
+                value={formState.hours}
+                onChange={updateField("hours")}
+                required={false}
+              />
+              <div className="hour-buttons">
+                {HOUR_BUTTONS.map((hours) => (
+                  <button
+                    key={hours}
+                    type="button"
+                    className="hour-button"
+                    onClick={() =>
+                      setFormState((prev) => ({ ...prev, hours }))
+                    }
+                  >
+                    {hours}h
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </label>
       </div>
       <label>

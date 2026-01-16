@@ -338,6 +338,28 @@ body {
   gap: 8px;
 }
 
+.hours-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hours-readonly {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d9dce7;
+  font-size: 14px;
+  background: #f5f6fa;
+  color: #5b6070;
+  cursor: not-allowed;
+}
+
+.hours-source {
+  font-size: 11px;
+  color: #7d8496;
+  font-style: italic;
+}
+
 .hour-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
