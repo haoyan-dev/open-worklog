@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Group, Stack, Text, Button } from "@mantine/core";
 import { formatDateTime, formatDuration } from "../utils/timeUtils";
 import type { TimeSpan } from "../types";
 
@@ -62,33 +63,35 @@ export default function TimeSpanSessionHeader({
   }, [timespan]);
   
   return (
-    <div className="timespan-session-header">
-      <div className="timespan-session-info">
-        <span className="timespan-session-index">#{index + 1}</span>
-        <div className="timespan-session-details">
-          <div className="timespan-session-time">
+    <Group justify="space-between" align="flex-start">
+      <Group gap="md" style={{ flex: 1 }}>
+        <Text size="xs" fw={600} c="dimmed">
+          #{index + 1}
+        </Text>
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">
             {formatDateTime(timespan.start_timestamp)}
             {timespan.end_timestamp ? (
               <> → {formatDateTime(timespan.end_timestamp)}</>
             ) : (
               " → (running)"
             )}
-          </div>
-          <div className="timespan-session-duration">
+          </Text>
+          <Text size="sm" fw={600}>
             {formatDuration(timespan.start_timestamp, timespan.end_timestamp)}
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="timespan-session-edit-btn"
+          </Text>
+        </Stack>
+      </Group>
+      <Button
+        size="xs"
+        variant="subtle"
         onClick={(e) => {
           e.stopPropagation();
           onToggleEdit();
         }}
       >
         {isEditing ? "Done" : "Edit"}
-      </button>
-    </div>
+      </Button>
+    </Group>
   );
 }

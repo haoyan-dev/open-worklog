@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Autocomplete } from "@mantine/core";
 import { fetchProjects, createProject } from "../api";
 import type { Project } from "../types";
 
@@ -15,37 +16,54 @@ export default function ProjectAutocomplete({
 }: ProjectAutocompleteProps) {
   const [inputValue, setInputValue] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCreateOption, setShowCreateOption] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousValueRef = useRef<number | null>(value);
+  const isInternalChangeRef = useRef(false);
 
   // Fetch all projects on mount
   useEffect(() => {
     loadProjects();
   }, []);
 
-  // Update input value when value prop changes (e.g., when editing existing entry)
+  // Update input value only when value prop changes from outside (not from our own onChange)
   useEffect(() => {
-    if (value && projects.length > 0) {
+    // Skip if this change was triggered internally
+    if (isInternalChangeRef.current) {
+      isInternalChangeRef.current = false;
+      return;
+    }
+
+    // Only update if the value prop actually changed
+    if (previousValueRef.current !== value) {
+      previousValueRef.current = value;
+      
+      if (value && projects.length > 0) {
+        const project = projects.find((p) => p.id === value);
+        if (project) {
+          setInputValue(project.name);
+        }
+      } else if (!value) {
+        setInputValue("");
+      }
+    }
+  }, [value]);
+
+  // When projects first load and we have a value, sync the input (only if input is empty)
+  useEffect(() => {
+    if (value && projects.length > 0 && !inputValue) {
       const project = projects.find((p) => p.id === value);
       if (project) {
         setInputValue(project.name);
       }
-    } else if (!value) {
-      setInputValue("");
     }
-  }, [value, projects]);
+  }, [projects.length]); // Only when projects list is first populated
 
   const loadProjects = async () => {
     try {
       setIsLoading(true);
       const allProjects = await fetchProjects();
       setProjects(allProjects);
-      setFilteredProjects(allProjects);
     } catch (error) {
       console.error("Failed to load projects:", error);
     } finally {
@@ -54,7 +72,6 @@ export default function ProjectAutocomplete({
   };
 
   // Debounced search
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchProjects = useCallback(async (searchTerm: string) => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -66,15 +83,7 @@ export default function ProjectAutocomplete({
         const results = searchTerm
           ? await fetchProjects(searchTerm)
           : await fetchProjects();
-        setFilteredProjects(results);
-
-        // Check if we should show "Create new project" option
-        const exactMatch = results.find(
-          (p) => p.name.toLowerCase() === searchTerm.toLowerCase()
-        );
-        setShowCreateOption(
-          searchTerm.trim().length > 0 && !exactMatch && !isLoading
-        );
+        setProjects(results);
       } catch (error) {
         console.error("Failed to search projects:", error);
       } finally {
@@ -83,31 +92,16 @@ export default function ProjectAutocomplete({
     }, 300);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    setSelectedIndex(-1);
-    setIsOpen(true);
-    searchProjects(newValue);
-  };
-
-  const handleSelectProject = (project: Project) => {
-    setInputValue(project.name);
-    onChange(project.id);
-    setIsOpen(false);
-    setSelectedIndex(-1);
-    setShowCreateOption(false);
-  };
-
-  const handleCreateProject = async () => {
-    if (!inputValue.trim()) return;
+  const handleCreateProject = async (projectName: string) => {
+    if (!projectName.trim()) return;
 
     try {
       setIsLoading(true);
-      const newProject = await createProject(inputValue.trim());
+      const newProject = await createProject(projectName.trim());
       setProjects((prev) => [...prev, newProject]);
-      setFilteredProjects((prev) => [...prev, newProject]);
-      handleSelectProject(newProject);
+      setInputValue(newProject.name);
+      isInternalChangeRef.current = true;
+      onChange(newProject.id);
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project. It may already exist.");
@@ -116,123 +110,54 @@ export default function ProjectAutocomplete({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "Enter") {
-        setIsOpen(true);
-      }
-      return;
-    }
-
-    const totalOptions = filteredProjects.length + (showCreateOption ? 1 : 0);
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < totalOptions - 1 ? prev + 1 : prev
-        );
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (selectedIndex >= 0) {
-          if (selectedIndex < filteredProjects.length) {
-            handleSelectProject(filteredProjects[selectedIndex]);
-          } else if (showCreateOption) {
-            handleCreateProject();
-          }
-        } else if (showCreateOption && inputValue.trim()) {
-          handleCreateProject();
-        }
-        break;
-      case "Escape":
-        setIsOpen(false);
-        setSelectedIndex(-1);
-        inputRef.current?.blur();
-        break;
+  const handleOptionSubmit = (selectedValue: string) => {
+    const project = projects.find((p) => p.name === selectedValue);
+    if (project) {
+      isInternalChangeRef.current = true;
+      onChange(project.id);
+    } else {
+      // This shouldn't happen if data is correct, but handle it anyway
+      handleCreateProject(selectedValue);
     }
   };
 
-  const handleInputFocus = () => {
-    setIsOpen(true);
-    searchProjects(inputValue);
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // When user presses Enter and the value doesn't match any project, create it
+    if (event.key === "Enter" && inputValue.trim()) {
+      const matchingProject = projects.find(
+        (p) => p.name.toLowerCase() === inputValue.toLowerCase().trim()
+      );
+      if (!matchingProject) {
+        event.preventDefault();
+        handleCreateProject(inputValue);
+      }
+    }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setSelectedIndex(-1);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  // Format projects as Autocomplete data (array of objects with value and label)
+  const projectData = projects.map((project) => ({
+    value: project.name,
+    label: project.description ? `${project.name} - ${project.description}` : project.name,
+  }));
 
   return (
-    <div className="project-autocomplete" ref={wrapperRef}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onKeyDown={handleKeyDown}
-        placeholder="Type to search or create project..."
-        required={required}
-        autoComplete="off"
-      />
-      {isOpen && (filteredProjects.length > 0 || showCreateOption) && (
-        <div className="project-autocomplete-dropdown">
-          {isLoading && (
-            <div className="project-autocomplete-item loading">Loading...</div>
-          )}
-          {!isLoading &&
-            filteredProjects.map((project, index) => (
-              <div
-                key={project.id}
-                className={`project-autocomplete-item ${
-                  index === selectedIndex ? "selected" : ""
-                }`}
-                onClick={() => handleSelectProject(project)}
-                onMouseEnter={() => setSelectedIndex(index)}
-              >
-                <div className="project-autocomplete-item-name">
-                  {project.name}
-                </div>
-                {project.description && (
-                  <div className="project-autocomplete-item-description">
-                    {project.description}
-                  </div>
-                )}
-              </div>
-            ))}
-          {showCreateOption && !isLoading && (
-            <div
-              className={`project-autocomplete-item create ${
-                selectedIndex === filteredProjects.length ? "selected" : ""
-              }`}
-              onClick={handleCreateProject}
-              onMouseEnter={() => setSelectedIndex(filteredProjects.length)}
-            >
-              <div className="project-autocomplete-item-name">
-                + Create "{inputValue.trim()}"
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <Autocomplete
+      value={inputValue}
+      onChange={setInputValue}
+      onOptionSubmit={handleOptionSubmit}
+      data={projectData}
+      placeholder="Type to search or create project..."
+      required={required}
+      loading={isLoading}
+      onKeyDown={handleKeyDown}
+      onInput={(event) => {
+        const searchTerm = event.currentTarget.value;
+        if (searchTerm) {
+          searchProjects(searchTerm);
+        } else {
+          loadProjects();
+        }
+      }}
+    />
   );
 }

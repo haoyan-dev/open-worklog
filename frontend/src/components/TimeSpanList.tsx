@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Collapse, Stack, Group, Text, Box } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import type { TimeSpan } from "../types";
 import { parseUTCDate } from "../utils/timeUtils";
 import TimeSpanSession from "./TimeSpanSession";
@@ -21,7 +23,7 @@ export default function TimeSpanList({
     hasOnUpdate: !!onUpdate,
     hasOnAdjust: !!onAdjust,
   });
-  const [collapsed, setCollapsed] = useState(initiallyCollapsed);
+  const [opened, { toggle }] = useDisclosure(!initiallyCollapsed);
 
   if (timespans.length === 0) {
     return null;
@@ -37,19 +39,16 @@ export default function TimeSpanList({
   }, 0);
 
   return (
-    <div className="timespan-list">
-      <div
-        className="timespan-list-header"
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span>
+    <Box p="sm" style={{ backgroundColor: "var(--mantine-color-gray-0)", borderRadius: "var(--mantine-radius-sm)", border: "1px solid var(--mantine-color-gray-3)" }}>
+      <Group justify="space-between" style={{ cursor: "pointer" }} onClick={toggle}>
+        <Text size="sm" fw={500}>
           {timespans.length} session{timespans.length !== 1 ? "s" : ""},{" "}
           {totalHours.toFixed(2)}h total
-        </span>
-        <span className="timespan-toggle">{collapsed ? "▼" : "▲"}</span>
-      </div>
-      {!collapsed && (
-        <div className="timespan-list-items">
+        </Text>
+        <Text size="xs" c="dimmed">{opened ? "▲" : "▼"}</Text>
+      </Group>
+      <Collapse in={opened}>
+        <Stack gap="sm" mt="sm">
           {timespans.map((span, index) => (
             <TimeSpanSession
               key={`${span.id}-${span.start_timestamp}-${span.end_timestamp || 'running'}`}
@@ -59,8 +58,8 @@ export default function TimeSpanList({
               onAdjust={onAdjust}
             />
           ))}
-        </div>
-      )}
-    </div>
+        </Stack>
+      </Collapse>
+    </Box>
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { Group, Button, Text, Badge } from "@mantine/core";
 import type { Timer } from "../types";
 import { useTimer } from "../hooks/useTimer";
 import type { TimeSpan } from "../types";
@@ -37,43 +38,67 @@ export default function TimerControls({
   const canStop = isActiveForThisEntry && (isRunning || isPaused);
 
   return (
-    <div className="timer-controls">
-      <div className="timer-display">
-        {isActiveForThisEntry && (
-          <>
-            <span className={`timer-indicator ${isRunning ? "running" : "paused"}`}>
-              {isRunning ? "●" : "○"}
-            </span>
-            <span className="timer-time">{formattedTime}</span>
-          </>
-        )}
-      </div>
-      <div className="timer-buttons">
+    <Group gap="sm" align="center">
+      {isActiveForThisEntry && (
+        <Group gap="xs" align="center">
+          <Badge
+            color={isRunning ? "green" : "orange"}
+            variant="dot"
+            size="lg"
+            style={{
+              animation: isRunning ? "pulse 2s ease-in-out infinite" : undefined,
+            }}
+          >
+            {isRunning ? "Running" : "Paused"}
+          </Badge>
+          <Text fw={600} size="sm">
+            {formattedTime}
+          </Text>
+        </Group>
+      )}
+      <Group gap="xs">
         {!isActiveForThisEntry && (
-          <button
-            className="timer-button start"
+          <Button
+            size="xs"
+            color="green"
+            variant="light"
             onClick={onStart}
             disabled={disabled || !canStart}
           >
             Start
-          </button>
+          </Button>
         )}
         {canPause && (
-          <button className="timer-button pause" onClick={onPause}>
+          <Button
+            size="xs"
+            color="orange"
+            variant="light"
+            onClick={onPause}
+          >
             Pause
-          </button>
+          </Button>
         )}
         {canResume && (
-          <button className="timer-button resume" onClick={onResume}>
+          <Button
+            size="xs"
+            color="blue"
+            variant="light"
+            onClick={onResume}
+          >
             Resume
-          </button>
+          </Button>
         )}
         {canStop && (
-          <button className="timer-button stop" onClick={onStop}>
+          <Button
+            size="xs"
+            color="red"
+            variant="light"
+            onClick={onStop}
+          >
             Stop
-          </button>
+          </Button>
         )}
-      </div>
-    </div>
+      </Group>
+    </Group>
   );
 }

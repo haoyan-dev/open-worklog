@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Paper, Stack, Box } from "@mantine/core";
 import type { TimeSpan } from "../types";
 import { parseUTCDate } from "../utils/timeUtils";
 import TimeSpanSessionHeader from "./TimeSpanSessionHeader";
@@ -83,33 +84,44 @@ export default function TimeSpanSession({
   };
 
   return (
-    <div className="timespan-session">
-      <TimeSpanSessionHeader
-        timespan={timespan}
-        index={index}
-        isEditing={isEditing}
-        onToggleEdit={handleToggleEdit}
-      />
-
-      <div className="timespan-session-gstc-container">
-        <SimpleTimeline
-          startTime={startTime}
-          endTime={endTime}
-          isRunning={isRunning}
+    <Paper shadow="xs" p="sm" radius="sm" withBorder>
+      <Stack gap="sm">
+        <TimeSpanSessionHeader
+          timespan={timespan}
+          index={index}
           isEditing={isEditing}
-          onTimeChange={handleTimeChange}
           onToggleEdit={handleToggleEdit}
         />
-      </div>
 
-      {isEditing && onAdjust && timespan.end_timestamp && (
-        <TimeSpanAdjustButtons
-          timespanId={timespan.id}
-          startTime={startTime}
-          endTime={endTime}
-          onAdjust={onAdjust}
-        />
-      )}
-    </div>
+        <Box
+          style={{
+            width: "100%",
+            minHeight: 102,
+            borderRadius: "var(--mantine-radius-sm)",
+            border: "1px solid var(--mantine-color-gray-3)",
+            overflow: "hidden",
+            backgroundColor: "white",
+          }}
+        >
+          <SimpleTimeline
+            startTime={startTime}
+            endTime={endTime}
+            isRunning={isRunning}
+            isEditing={isEditing}
+            onTimeChange={handleTimeChange}
+            onToggleEdit={handleToggleEdit}
+          />
+        </Box>
+
+        {isEditing && onAdjust && timespan.end_timestamp && (
+          <TimeSpanAdjustButtons
+            timespanId={timespan.id}
+            startTime={startTime}
+            endTime={endTime}
+            onAdjust={onAdjust}
+          />
+        )}
+      </Stack>
+    </Paper>
   );
 }

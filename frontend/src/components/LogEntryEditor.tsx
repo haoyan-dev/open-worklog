@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { Paper, Stack, TextInput, Textarea, Select, Button, Group, Text, Box } from "@mantine/core";
 import type { LogEntryEditorProps, LogEntryCreate, Category } from "../types";
 import TimeSpanList from "./TimeSpanList";
 import ProjectAutocomplete from "./ProjectAutocomplete";
@@ -82,82 +83,85 @@ export default function LogEntryEditor({
   };
 
   return (
-    <form className="log-editor" onSubmit={handleSubmit}>
-      <div className="log-editor-row">
-        <label>
-          Project
-          <ProjectAutocomplete
-            value={formState.project_id || null}
-            onChange={(projectId) => {
-              setFormState((prev) => ({ ...prev, project_id: projectId }));
-            }}
+    <Paper shadow="sm" p="lg" radius="md" withBorder>
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <Group grow>
+            <Box>
+              <Text size="sm" fw={500} mb={4}>
+                Project
+              </Text>
+              <ProjectAutocomplete
+                value={formState.project_id || null}
+                onChange={(projectId) => {
+                  setFormState((prev) => ({ ...prev, project_id: projectId }));
+                }}
+                required
+              />
+            </Box>
+            <Select
+              label="Category"
+              value={formState.category}
+              onChange={(value) => {
+                if (value) {
+                  setFormState((prev) => ({ ...prev, category: value as Category }));
+                }
+              }}
+              data={CATEGORIES}
+            />
+            <Box>
+              <Text size="sm" fw={500} mb={4}>
+                Hours
+              </Text>
+              <Box p="sm" style={{ backgroundColor: "var(--mantine-color-gray-0)", borderRadius: "var(--mantine-radius-sm)" }}>
+                <Group justify="space-between" gap="xs">
+                  <Text size="sm" c="dimmed">TimeSpan hours:</Text>
+                  <Text size="sm" fw={500}>{timespanHours.toFixed(2)}h</Text>
+                </Group>
+                <Group justify="space-between" gap="xs" mt="xs" pt="xs" style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
+                  <Text size="sm" fw={600}>Total hours:</Text>
+                  <Text size="md" fw={700} c="blue">{totalHours.toFixed(2)}h</Text>
+                </Group>
+              </Box>
+            </Box>
+          </Group>
+
+          <Textarea
+            label="Task"
+            rows={3}
+            value={formState.task}
+            onChange={updateField("task")}
             required
           />
-        </label>
-        <label>
-          Category
-          <select
-            value={formState.category}
-            onChange={updateField("category")}
-          >
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Hours
-          <div className="hours-section">
-            <div className="hours-breakdown">
-              <div className="hours-row">
-                <span className="hours-label">TimeSpan hours:</span>
-                <span className="hours-value readonly">{timespanHours.toFixed(2)}h</span>
-              </div>
-              <div className="hours-row total">
-                <span className="hours-label">Total hours:</span>
-                <span className="hours-value total">{totalHours.toFixed(2)}h</span>
-              </div>
-            </div>
-          </div>
-        </label>
-      </div>
-      <label>
-        Task
-        <textarea
-          rows={3}
-          value={formState.task}
-          onChange={updateField("task")}
-          required
-        />
-      </label>
-      {timespans && timespans.length > 0 && (
-        <div className="log-editor-timespans">
-          <TimeSpanList 
-            timespans={timespans} 
-            collapsed={false}
-            onAdjust={onTimeSpanAdjust}
-            onUpdate={onTimeSpanUpdate}
+
+          {timespans && timespans.length > 0 && (
+            <Box>
+              <TimeSpanList 
+                timespans={timespans} 
+                collapsed={false}
+                onAdjust={onTimeSpanAdjust}
+                onUpdate={onTimeSpanUpdate}
+              />
+            </Box>
+          )}
+
+          <Textarea
+            label="Notes"
+            rows={3}
+            value={formState.notes || ""}
+            onChange={updateField("notes")}
           />
-        </div>
-      )}
-      <label>
-        Notes
-        <textarea
-          rows={3}
-          value={formState.notes || ""}
-          onChange={updateField("notes")}
-        />
-      </label>
-      <div className="log-editor-actions">
-        <button type="button" className="ghost-button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="primary-button">
-          Save
-        </button>
-      </div>
-    </form>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              Save
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
   );
 }

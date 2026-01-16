@@ -1,9 +1,7 @@
 import React from "react";
+import { Group, Button } from "@mantine/core";
+import { DateInput } from "@mantine/dates";
 import type { DateNavigatorProps } from "../types";
-
-function formatDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
 
 export default function DateNavigator({ date, onChange }: DateNavigatorProps) {
   const handlePrev = () => {
@@ -18,24 +16,18 @@ export default function DateNavigator({ date, onChange }: DateNavigatorProps) {
     onChange(next);
   };
 
-  const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(new Date(event.target.value));
-  };
-
   return (
-    <header className="date-nav">
-      <button className="ghost-button" onClick={handlePrev}>
+    <Group justify="space-between" p="md" style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: "var(--mantine-color-body)" }}>
+      <Button variant="subtle" onClick={handlePrev}>
         &lt; Previous Day
-      </button>
-      <input
-        className="date-input"
-        type="date"
-        value={formatDate(date)}
-        onChange={handleInput}
+      </Button>
+      <DateInput
+        value={date}
+        onChange={(value) => value && onChange(value)}
       />
-      <button className="ghost-button" onClick={handleNext}>
+      <Button variant="subtle" onClick={handleNext}>
         Next Day &gt;
-      </button>
-    </header>
+      </Button>
+    </Group>
   );
 }

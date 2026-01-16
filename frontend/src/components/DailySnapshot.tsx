@@ -1,21 +1,32 @@
 import React from "react";
+import { Card, Group, Stack, Text, Badge, Progress } from "@mantine/core";
 import type { DailySnapshotProps } from "../types";
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Routine Work": "#6c8cff",
-  OKR: "#ff8c5a",
-  "Team Contribution": "#4fc37d",
-  "Company Contribution": "#d18cff",
+  "Routine Work": "blue",
+  OKR: "orange",
+  "Team Contribution": "green",
+  "Company Contribution": "violet",
 };
 
-function statusColor(totalHours: number): string {
+function getStatusColor(totalHours: number): string {
   if (totalHours >= 7) {
-    return "status-good";
+    return "green";
   }
   if (totalHours < 4) {
-    return "status-warn";
+    return "orange";
   }
-  return "status-neutral";
+  return "blue";
+}
+
+function getStatusLabel(totalHours: number): string {
+  if (totalHours >= 7) {
+    return "On Track";
+  }
+  if (totalHours < 4) {
+    return "At Risk";
+  }
+  return "Moderate";
 }
 
 export default function DailySnapshot({
@@ -26,36 +37,48 @@ export default function DailySnapshot({
     (sum, value) => sum + value,
     0
   );
+  
+  const segments = Object.entries(categoryHours).map(([category, hours]) => ({
+    value: total === 0 ? 0 : (hours / total) * 100,
+    color: CATEGORY_COLORS[category] || "gray",
+    label: `${category}: ${hours.toFixed(1)}h`,
+  }));
+
   return (
-    <section className="snapshot">
-      <div className="snapshot-block">
-        <div className="snapshot-label">Total Hours Logged</div>
-        <div className="snapshot-value">{totalHours.toFixed(1)}h</div>
-      </div>
-      <div className="snapshot-block">
-        <div className="snapshot-label">Status Check</div>
-        <div className={`status-pill ${statusColor(totalHours)}`}>
-          {totalHours >= 7 ? "On Track" : totalHours < 4 ? "At Risk" : "Moderate"}
-        </div>
-      </div>
-      <div className="snapshot-block snapshot-bar">
-        <div className="snapshot-label">Category Distribution</div>
-        <div className="distribution-bar">
-          {Object.entries(categoryHours).map(([category, hours]) => {
-            const ratio = total === 0 ? 0 : (hours / total) * 100;
-            return (
-              <span
-                key={category}
-                style={{
-                  width: `${ratio}%`,
-                  background: CATEGORY_COLORS[category] || "#999",
-                }}
-                title={`${category}: ${hours.toFixed(1)}h`}
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Group justify="space-between" gap="md">
+        <Stack gap="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+            Total Hours Logged
+          </Text>
+          <Text size="xl" fw={600}>
+            {totalHours.toFixed(1)}h
+          </Text>
+        </Stack>
+        <Stack gap="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+            Status Check
+          </Text>
+          <Badge color={getStatusColor(totalHours)} size="lg">
+            {getStatusLabel(totalHours)}
+          </Badge>
+        </Stack>
+        <Stack gap="xs" style={{ flex: 1, minWidth: 200 }}>
+          <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+            Category Distribution
+          </Text>
+          <Progress.Root size="md">
+            {segments.map((segment, index) => (
+              <Progress.Section
+                key={index}
+                value={segment.value}
+                color={segment.color}
+                title={segment.label}
               />
-            );
-          })}
-        </div>
-      </div>
-    </section>
+            ))}
+          </Progress.Root>
+        </Stack>
+      </Group>
+    </Card>
   );
 }

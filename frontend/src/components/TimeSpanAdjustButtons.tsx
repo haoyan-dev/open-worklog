@@ -1,4 +1,5 @@
 import React from "react";
+import { Group, Button } from "@mantine/core";
 import { getHoursFromMidnight } from "../utils/timeUtils";
 
 interface TimeSpanAdjustButtonsProps {
@@ -19,37 +20,37 @@ export default function TimeSpanAdjustButtons({
   const duration = endHours - startHours;
 
   return (
-    <div className="timespan-session-adjust">
-      <div className="timespan-session-adjust-buttons">
-        {[0.25, 0.5, 1].map((hours) => (
-          <React.Fragment key={hours}>
-            <button
-              type="button"
-              className="timespan-session-adjust-btn add"
+    <Group gap="xs" mt="xs">
+      {[0.25, 0.5, 1].map((hours) => (
+        <React.Fragment key={hours}>
+          <Button
+            size="xs"
+            color="green"
+            variant="light"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdjust(timespanId, hours);
+            }}
+            title={`Add ${hours}h`}
+          >
+            +{hours}h
+          </Button>
+          {duration > hours && (
+            <Button
+              size="xs"
+              color="orange"
+              variant="light"
               onClick={(e) => {
                 e.stopPropagation();
-                onAdjust(timespanId, hours);
+                onAdjust(timespanId, -hours);
               }}
-              title={`Add ${hours}h`}
+              title={`Subtract ${hours}h`}
             >
-              +{hours}h
-            </button>
-            {duration > hours && (
-              <button
-                type="button"
-                className="timespan-session-adjust-btn subtract"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdjust(timespanId, -hours);
-                }}
-                title={`Subtract ${hours}h`}
-              >
-                -{hours}h
-              </button>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
+              -{hours}h
+            </Button>
+          )}
+        </React.Fragment>
+      ))}
+    </Group>
   );
 }
