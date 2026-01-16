@@ -98,7 +98,7 @@ export default function TimeSpanSession({
           isRunning={isRunning}
           isEditing={isEditing}
           onTimeChange={handleTimeChange}
-          height={80}
+          onToggleEdit={handleToggleEdit}
         />
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { formatDateTimeLabel } from "../utils/timeUtils";
+import { formatDateMedium, formatTime24 } from "../utils/timeUtils";
 
 interface SimpleTimelineProps {
   startTime: Date;
@@ -7,6 +7,7 @@ interface SimpleTimelineProps {
   isRunning?: boolean;
   isEditing?: boolean;
   onTimeChange?: (startTimestamp: string, endTimestamp: string) => void;
+  onToggleEdit?: () => void;
   height?: number;
 }
 
@@ -34,7 +35,7 @@ function snapToQuarterHour(timestamp: number): number {
 }
 
 // Generate time axis labels based on visible range
-function generateTimeLabels(timeFrom: number, timeTo: number, width: number): Array<{ time: number; x: number; label: string }> {
+function generateTimeLabels(timeFrom: number, timeTo: number, width: number): Array<{ time: number; x: number; dateLabel: string; timeLabel: string }> {
   const range = timeTo - timeFrom;
   const rangeHours = range / (1000 * 60 * 60);
   
@@ -47,15 +48,17 @@ function generateTimeLabels(timeFrom: number, timeTo: number, width: number): Ar
     intervalMs = 3 * 60 * 60 * 1000; // 3 hours
   }
   
-  const labels: Array<{ time: number; x: number; label: string }> = [];
+  const labels: Array<{ time: number; x: number; dateLabel: string; timeLabel: string }> = [];
   const startTime = Math.ceil(timeFrom / intervalMs) * intervalMs;
   
   for (let time = startTime; time <= timeTo; time += intervalMs) {
+    const date = new Date(time);
     const x = timeToPixel(time, timeFrom, timeTo, width);
     labels.push({
       time,
       x,
-      label: formatDateTimeLabel(new Date(time)),
+      dateLabel: formatDateMedium(date),
+      timeLabel: formatTime24(date),
     });
   }
   
@@ -68,6 +71,7 @@ export default function SimpleTimeline({
   isRunning = false,
   isEditing = false,
   onTimeChange,
+  onToggleEdit,
   height = 80,
 }: SimpleTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,6 +92,7 @@ export default function SimpleTimeline({
   const onTimeChangeRef = useRef(onTimeChange);
   const lastSentUpdateRef = useRef<{ startTime: number; endTime: number } | null>(null);
   const isUpdatingRef = useRef(false);
+  const justDraggedRef = useRef(false);
 
   // Keep onTimeChange ref up to date
   useEffect(() => {
@@ -184,9 +189,13 @@ export default function SimpleTimeline({
   }
 
   const width = containerWidth;
-  const axisHeight = 20;
+  const axisHeight = 32; // Base height for label area
+  const axisLineY = axisHeight + 20; // Position of the axis line (below both labels)
   const barHeight = 30;
-  const barY = axisHeight + 10;
+  const barY = axisLineY + 10;
+  // Calculate minimum required height: labels + axis line + bar + padding
+  const minHeight = barY + barHeight + 10; // 62 + 30 + 10 = 102px minimum
+  const actualHeight = Math.max(height, minHeight);
 
   // Convert times to pixel positions
   const barStartX = timeToPixel(startMs, timeFrom, timeTo, width);
@@ -283,38 +292,47 @@ export default function SimpleTimeline({
     };
 
     const handleMouseUp = () => {
-      if (dragState !== null && onTimeChangeRef.current) {
-        // Always use the ref value which is updated on every mouse move
-        // The ref should always be set from handleMouseDown initialization
-        const finalTimes = currentDragTimesRef.current;
+      if (dragState !== null) {
+        // Mark that we just completed a drag to prevent double-click from firing
+        justDraggedRef.current = true;
+        // Clear the flag after a short delay to allow normal double-click behavior again
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 300);
         
-        if (finalTimes) {
-          // Mark that we're updating to prevent prop sync from resetting values
-          isUpdatingRef.current = true;
+        if (onTimeChangeRef.current) {
+          // Always use the ref value which is updated on every mouse move
+          // The ref should always be set from handleMouseDown initialization
+          const finalTimes = currentDragTimesRef.current;
           
-          // Store what we're sending to track when update completes
-          lastSentUpdateRef.current = {
-            startTime: finalTimes.startTime,
-            endTime: finalTimes.endTime,
-          };
-          
-          // Call callback with the final dragged times
-          onTimeChangeRef.current(
-            new Date(finalTimes.startTime).toISOString(),
-            new Date(finalTimes.endTime).toISOString()
-          );
-          
-          // Allow prop sync after a short delay (gives time for API call to start)
-          // The actual sync will happen when props match what we sent
-          setTimeout(() => {
-            isUpdatingRef.current = false;
-          }, 100);
-          
-          // Clear tracking after a longer delay in case update fails
-          // This prevents getting stuck if the update never completes
-          setTimeout(() => {
-            lastSentUpdateRef.current = null;
-          }, 10000);
+          if (finalTimes) {
+            // Mark that we're updating to prevent prop sync from resetting values
+            isUpdatingRef.current = true;
+            
+            // Store what we're sending to track when update completes
+            lastSentUpdateRef.current = {
+              startTime: finalTimes.startTime,
+              endTime: finalTimes.endTime,
+            };
+            
+            // Call callback with the final dragged times
+            onTimeChangeRef.current(
+              new Date(finalTimes.startTime).toISOString(),
+              new Date(finalTimes.endTime).toISOString()
+            );
+            
+            // Allow prop sync after a short delay (gives time for API call to start)
+            // The actual sync will happen when props match what we sent
+            setTimeout(() => {
+              isUpdatingRef.current = false;
+            }, 100);
+            
+            // Clear tracking after a longer delay in case update fails
+            // This prevents getting stuck if the update never completes
+            setTimeout(() => {
+              lastSentUpdateRef.current = null;
+            }, 10000);
+          }
         }
       }
       
@@ -335,11 +353,39 @@ export default function SimpleTimeline({
   const handleResizeStart = useCallback((e: React.MouseEvent) => handleMouseDown(e, "resize-start"), [handleMouseDown]);
   const handleResizeEnd = useCallback((e: React.MouseEvent) => handleMouseDown(e, "resize-end"), [handleMouseDown]);
   const handleMove = useCallback((e: React.MouseEvent) => handleMouseDown(e, "move"), [handleMouseDown]);
+  
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Prevent text selection
+    if (window.getSelection) {
+      window.getSelection()?.removeAllRanges();
+    }
+    // Don't toggle if we just completed a drag operation
+    if (justDraggedRef.current) {
+      return;
+    }
+    // Only enter editing mode if not already editing (only Edit button can exit)
+    if (!isEditing && onToggleEdit) {
+      onToggleEdit();
+    }
+  }, [isEditing, onToggleEdit]);
+  
+  const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
+    // If not in editing mode, prevent default to avoid text selection
+    if (!isEditing) {
+      e.preventDefault();
+    }
+    // If in editing mode, use the move handler
+    if (isEditing) {
+      handleMove(e);
+    }
+  }, [isEditing, handleMove]);
 
   return (
-    <div ref={containerRef} className="simple-timeline-container" style={{ height: `${height}px`, width: "100%" }}>
+    <div ref={containerRef} className="simple-timeline-container" style={{ height: `${actualHeight}px`, width: "100%" }}>
       {width > 0 && (
-        <svg ref={svgRef} width={width} height={height} className="simple-timeline-svg">
+        <svg ref={svgRef} width={width} height={actualHeight} className="simple-timeline-svg">
           {/* Grid lines - extend through full height including time span area */}
           {timeLabels.map((label, idx) => (
             <line
@@ -347,7 +393,7 @@ export default function SimpleTimeline({
               x1={label.x}
               y1={0}
               x2={label.x}
-              y2={height}
+              y2={actualHeight}
               stroke="#f0f2f7"
               strokeWidth={1}
               strokeDasharray="2,2"
@@ -358,9 +404,9 @@ export default function SimpleTimeline({
           {/* Time axis line */}
           <line
             x1={0}
-            y1={axisHeight}
+            y1={axisLineY}
             x2={width}
-            y2={axisHeight}
+            y2={axisLineY}
             stroke="#eef0f5"
             strokeWidth={1}
           />
@@ -370,9 +416,9 @@ export default function SimpleTimeline({
             <g key={idx}>
               <line
                 x1={label.x}
-                y1={axisHeight - 4}
+                y1={axisLineY - 4}
                 x2={label.x}
-                y2={axisHeight}
+                y2={axisLineY}
                 stroke="#eef0f5"
                 strokeWidth={1}
               />
@@ -384,7 +430,8 @@ export default function SimpleTimeline({
                 fill="#7d8496"
                 className="simple-timeline-label"
               >
-                {label.label}
+                <tspan x={label.x} dy="0">{label.dateLabel}</tspan>
+                <tspan x={label.x} dy="12">{label.timeLabel}</tspan>
               </text>
             </g>
           ))}
@@ -401,8 +448,9 @@ export default function SimpleTimeline({
               strokeWidth={isEditing ? 2 : 1}
               rx={4}
               className="simple-timeline-bar"
-              style={{ cursor: isEditing ? "move" : "default" }}
-              onMouseDown={isEditing ? handleMove : undefined}
+              style={{ cursor: isEditing ? "move" : "pointer" }}
+              onMouseDown={handleBarMouseDown}
+              onDoubleClick={handleDoubleClick}
             />
 
             {/* Resize handles (only in edit mode) */}

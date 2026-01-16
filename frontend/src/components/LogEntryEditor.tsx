@@ -11,8 +11,6 @@ const CATEGORIES: Category[] = [
   "Company Contribution",
 ];
 
-const HOUR_BUTTONS = [0.25, 0.5, 1, 2, 4, 8];
-
 export default function LogEntryEditor({
   entry,
   date,
@@ -56,7 +54,7 @@ export default function LogEntryEditor({
         project_id: entry.project_id,
         task: entry.task,
         hours: entry.hours,
-        additional_hours: entry.additional_hours || 0,
+        additional_hours: 0,
         status: entry.status || "Completed",
         notes: entry.notes || "",
       });
@@ -66,17 +64,11 @@ export default function LogEntryEditor({
   const updateField = (field: keyof LogEntryCreate) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const value =
-      field === "additional_hours" 
-        ? roundToQuarterHour(Number(event.target.value)) 
-        : event.target.value;
-    setFormState((prev) => ({ ...prev, [field]: value }));
+    setFormState((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  // Calculate total hours = TimeSpan hours + additional hours
-  const totalHours = roundToQuarterHour(timespanHours + formState.additional_hours);
-  
-  const [adjustPanelExpanded, setAdjustPanelExpanded] = useState(false);
+  // Total hours = TimeSpan hours only
+  const totalHours = roundToQuarterHour(timespanHours);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,7 +76,7 @@ export default function LogEntryEditor({
     onSave({ 
       ...formState, 
       hours: totalHours,
-      additional_hours: formState.additional_hours,
+      additional_hours: 0,
       date 
     });
   };
@@ -122,53 +114,6 @@ export default function LogEntryEditor({
               <div className="hours-row">
                 <span className="hours-label">TimeSpan hours:</span>
                 <span className="hours-value readonly">{timespanHours.toFixed(2)}h</span>
-              </div>
-              <div className="hours-row">
-                <span className="hours-label">Additional hours:</span>
-                <span className="hours-value readonly">{formState.additional_hours.toFixed(2)}h</span>
-              </div>
-              <div className="hours-adjust-panel">
-                <div
-                  className="hours-adjust-header"
-                  onClick={() => setAdjustPanelExpanded(!adjustPanelExpanded)}
-                >
-                  <span>Adjust hours</span>
-                  <span className="hours-adjust-toggle">{adjustPanelExpanded ? "▲" : "▼"}</span>
-                </div>
-                {adjustPanelExpanded && (
-                  <div className="hours-adjust-content">
-                    <div className="hour-buttons-group">
-                      {HOUR_BUTTONS.map((hourValue) => (
-                        <div key={hourValue} className="hour-button-group">
-                          <span className="hour-button-label">{hourValue}h</span>
-                          <button
-                            type="button"
-                            className="hour-button add"
-                            onClick={() => {
-                              const newAdditional = roundToQuarterHour(formState.additional_hours + hourValue);
-                              setFormState((prev) => ({ ...prev, additional_hours: newAdditional }));
-                            }}
-                            title={`Add ${hourValue}h`}
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className="hour-button subtract"
-                            onClick={() => {
-                              const newAdditional = Math.max(0, roundToQuarterHour(formState.additional_hours - hourValue));
-                              setFormState((prev) => ({ ...prev, additional_hours: newAdditional }));
-                            }}
-                            disabled={formState.additional_hours < hourValue}
-                            title={`Subtract ${hourValue}h`}
-                          >
-                            -
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="hours-row total">
                 <span className="hours-label">Total hours:</span>

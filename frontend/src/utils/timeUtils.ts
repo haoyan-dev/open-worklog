@@ -108,6 +108,28 @@ export function formatTime(date: Date): string {
 }
 
 /**
+ * Format time in 24-hour format (HH:MM)
+ */
+export function formatTime24(date: Date): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/**
+ * Format date in medium format (e.g., "Jan 15, 2024")
+ */
+export function formatDateMedium(date: Date): string {
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
  * Format datetime for grid labels (compact format)
  */
 export function formatDateTimeLabel(date: Date, showDate: boolean = false): string {

@@ -351,11 +351,13 @@ export default function App() {
     <div className="app">
       <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       <main className="content">
-        <DailySnapshot
-          totalHours={summary.totalHours}
-          categoryHours={summary.categoryHours}
-        />
-        {isCreating ? (
+        {!editingEntry && (
+          <DailySnapshot
+            totalHours={summary.totalHours}
+            categoryHours={summary.categoryHours}
+          />
+        )}
+        {isCreating && !editingEntry ? (
           <LogEntryEditor
             date={dateString}
             onSave={handleSave}
@@ -366,71 +368,75 @@ export default function App() {
         {isLoading ? <p>Loading logs...</p> : null}
         {isError ? <p className="error">{error?.message}</p> : null}
         <section className="log-list">
-          {logs.map((entry) =>
-            editingEntry && editingEntry.id === entry.id ? (
-              <LogEntryEditor
-                key={entry.id}
-                entry={editingEntry}
-                date={dateString}
-                onSave={handleSave}
-                onCancel={() => setEditingEntry(null)}
-                timespans={timespansMap[editingEntry.id] || []}
-                onTimeSpanAdjust={(timespanId, hours) =>
-                  adjustTimeSpanMutation.mutate({ timespanId, hours })
-                }
-                onTimeSpanUpdate={(timespanId, startTimestamp, endTimestamp) => {
-                  console.log("[App] onTimeSpanUpdate called", {
-                    timespanId,
-                    startTimestamp,
-                    endTimestamp,
-                  });
-                  updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
-                }}
-              />
-            ) : (
-              <LogEntryCard
-                key={entry.id}
-                entry={entry}
-                onEdit={(log) => setEditingEntry(log)}
-                onDelete={(id) => deleteMutation.mutate(id)}
-                activeTimer={activeTimer}
-                timespans={timespansMap[entry.id] || []}
-                onStartTimer={(entryId) =>
-                  startTimerMutation.mutate({ entryId })
-                }
-                onPauseTimer={(timerId) => pauseTimerMutation.mutate(timerId)}
-                onResumeTimer={(timerId) =>
-                  resumeTimerMutation.mutate(timerId)
-                }
-                onStopTimer={(timerId) => stopTimerMutation.mutate(timerId)}
-                onTimeSpanAdjust={(timespanId, hours) =>
-                  adjustTimeSpanMutation.mutate({ timespanId, hours })
-                }
-                onTimeSpanUpdate={(timespanId, startTimestamp, endTimestamp) => {
-                  console.log("[App] onTimeSpanUpdate called from LogEntryCard", {
-                    timespanId,
-                    startTimestamp,
-                    endTimestamp,
-                  });
-                  updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
-                }}
-              />
-            )
-          )}
-          {!isCreating && !isLoading && (
-            <button
-              className="log-card add-log-card"
-              onClick={() => {
-                setEditingEntry(null);
-                setIsCreating(true);
+          {editingEntry ? (
+            // When editing, only show the editor for the selected entry - hide all cards
+            <LogEntryEditor
+              key={editingEntry.id}
+              entry={editingEntry}
+              date={dateString}
+              onSave={handleSave}
+              onCancel={() => setEditingEntry(null)}
+              timespans={timespansMap[editingEntry.id] || []}
+              onTimeSpanAdjust={(timespanId, hours) =>
+                adjustTimeSpanMutation.mutate({ timespanId, hours })
+              }
+              onTimeSpanUpdate={(timespanId, startTimestamp, endTimestamp) => {
+                console.log("[App] onTimeSpanUpdate called", {
+                  timespanId,
+                  startTimestamp,
+                  endTimestamp,
+                });
+                updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
               }}
-              aria-label="Add log entry"
-            >
-              <div className="add-log-card-content">
-                <span className="add-log-icon">➕</span>
-                <span className="add-log-text">Add</span>
-              </div>
-            </button>
+            />
+          ) : (
+            // When not editing, show all cards (LogEntryCard components)
+            <>
+              {logs.map((entry) => (
+                <LogEntryCard
+                  key={entry.id}
+                  entry={entry}
+                  onEdit={(log) => setEditingEntry(log)}
+                  onDelete={(id) => deleteMutation.mutate(id)}
+                  activeTimer={activeTimer}
+                  timespans={timespansMap[entry.id] || []}
+                  onStartTimer={(entryId) =>
+                    startTimerMutation.mutate({ entryId })
+                  }
+                  onPauseTimer={(timerId) => pauseTimerMutation.mutate(timerId)}
+                  onResumeTimer={(timerId) =>
+                    resumeTimerMutation.mutate(timerId)
+                  }
+                  onStopTimer={(timerId) => stopTimerMutation.mutate(timerId)}
+                  onTimeSpanAdjust={(timespanId, hours) =>
+                    adjustTimeSpanMutation.mutate({ timespanId, hours })
+                  }
+                  onTimeSpanUpdate={(timespanId, startTimestamp, endTimestamp) => {
+                    console.log("[App] onTimeSpanUpdate called from LogEntryCard", {
+                      timespanId,
+                      startTimestamp,
+                      endTimestamp,
+                    });
+                    updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
+                  }}
+                />
+              ))}
+              {!isCreating && !isLoading && (
+                <button
+                  className="log-card add-log-card"
+                  onClick={() => {
+                    setEditingEntry(null);
+                    setIsCreating(true);
+                  }}
+                  aria-label="Add log entry"
+                >
+                  <div className="add-log-card-content">
+                    <span className="add-log-icon">➕</span>
+                    <span className="add-log-text">Add</span>
+                  </div>
+                </button>
+              )}
+            </>
           )}
         </section>
       </main>
