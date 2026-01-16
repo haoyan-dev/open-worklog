@@ -130,7 +130,6 @@ body {
   border-radius: 16px;
   padding: 16px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
 }
 
 .log-card-header {
@@ -521,6 +520,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 .timespan-item {
@@ -614,6 +617,13 @@ body {
   border: 1px solid #eef0f5;
 }
 
+.timespan-session.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 .timespan-session-header {
   display: flex;
   justify-content: space-between;
@@ -669,136 +679,53 @@ body {
   border-color: #c5c9d6;
 }
 
-.timespan-session-timeline-container {
-  position: relative;
+.timespan-session-gstc-container {
   width: 100%;
   height: 80px;
-  background: #fafbfc;
   border-radius: 6px;
   border: 1px solid #eef0f5;
   overflow: hidden;
-}
-
-.timespan-session-timeline {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.timespan-session-hour-marker {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #e5e7eb;
-  pointer-events: none;
-}
-
-.timespan-session-hour-marker:nth-child(4n) {
-  background: #d1d5db;
-  width: 2px;
-}
-
-.timespan-session-hour-label {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  font-size: 10px;
-  color: #9ca3af;
-  font-weight: 500;
-  transform: translateX(-50%);
-}
-
-.timespan-session-bar {
-  position: absolute;
-  top: 20px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-}
-
-.timespan-session-bar.running {
-  background: linear-gradient(135deg, #4fc37d 0%, #3aa86a 100%);
-  box-shadow: 0 2px 8px rgba(79, 195, 125, 0.3);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-.timespan-session-bar.editing {
-  border: 2px dashed #667eea;
-  background: rgba(102, 126, 234, 0.2);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-}
-
-.timespan-session-bar-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #1f2330;
-  white-space: nowrap;
-  padding: 0 4px;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.timespan-session-handle {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
   background: white;
-  border: 2px solid #667eea;
-  border-radius: 50%;
-  cursor: grab;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s;
 }
 
-.timespan-session-handle:active {
-  cursor: grabbing;
-  transform: translateY(-50%) scale(1.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+/* Simple Timeline Styles */
+.simple-timeline-container {
+  width: 100%;
+  position: relative;
+  background: white;
 }
 
-.timespan-session-handle-start {
-  left: -8px;
+.simple-timeline-svg {
+  display: block;
+  width: 100%;
 }
 
-.timespan-session-handle-end {
-  right: -8px;
+.simple-timeline-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  user-select: none;
 }
 
-.timespan-session-handle-dot {
-  width: 6px;
-  height: 6px;
-  background: #667eea;
-  border-radius: 50%;
+.simple-timeline-bar-group {
+  cursor: default;
 }
 
-.timespan-session-handle:hover {
-  background: #f5f6fa;
-  border-color: #764ba2;
+.simple-timeline-bar {
+  transition: stroke-width 0.2s, stroke 0.2s;
 }
 
-.timespan-session-handle:hover .timespan-session-handle-dot {
-  background: #764ba2;
+.simple-timeline-bar:hover {
+  opacity: 0.9;
+}
+
+.simple-timeline-handle {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.simple-timeline-handle:hover {
+  opacity: 1;
 }
 
 .timespan-session-adjust {

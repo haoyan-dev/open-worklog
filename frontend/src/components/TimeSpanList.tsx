@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import type { TimeSpan } from "../types";
+import { parseUTCDate } from "../utils/timeUtils";
 import TimeSpanSession from "./TimeSpanSession";
 
 interface TimeSpanListProps {
@@ -15,16 +16,22 @@ export default function TimeSpanList({
   onAdjust,
   onUpdate,
 }: TimeSpanListProps) {
+  console.log("[TimeSpanList] render", {
+    timespansCount: timespans.length,
+    hasOnUpdate: !!onUpdate,
+    hasOnAdjust: !!onAdjust,
+  });
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
 
   if (timespans.length === 0) {
     return null;
   }
 
+  // Parse timestamps as UTC to avoid timezone shifts
   const totalHours = timespans.reduce((total, span) => {
-    const start = new Date(span.start_timestamp).getTime();
+    const start = parseUTCDate(span.start_timestamp).getTime();
     const end = span.end_timestamp
-      ? new Date(span.end_timestamp).getTime()
+      ? parseUTCDate(span.end_timestamp).getTime()
       : Date.now();
     return total + (end - start) / (1000 * 60 * 60);
   }, 0);
@@ -45,7 +52,7 @@ export default function TimeSpanList({
         <div className="timespan-list-items">
           {timespans.map((span, index) => (
             <TimeSpanSession
-              key={span.id}
+              key={`${span.id}-${span.start_timestamp}-${span.end_timestamp || 'running'}`}
               timespan={span}
               index={index}
               onUpdate={onUpdate}

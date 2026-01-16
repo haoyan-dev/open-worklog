@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
-import type { LogEntryEditorProps, LogEntryCreate, Category, TimeSpan } from "../types";
+import type { LogEntryEditorProps, LogEntryCreate, Category } from "../types";
 import TimeSpanList from "./TimeSpanList";
 import ProjectAutocomplete from "./ProjectAutocomplete";
+import { calculateHoursFromTimeSpans, roundToQuarterHour } from "../utils/timeUtils";
 
 const CATEGORIES: Category[] = [
   "Routine Work",
@@ -12,28 +13,6 @@ const CATEGORIES: Category[] = [
 
 const HOUR_BUTTONS = [0.25, 0.5, 1, 2, 4, 8];
 
-// Calculate hours from TimeSpans, rounded to 0.25 increments
-function calculateHoursFromTimeSpans(timespans: TimeSpan[]): number {
-  if (timespans.length === 0) return 0;
-  
-  const totalHours = timespans.reduce((total, span) => {
-    const start = new Date(span.start_timestamp).getTime();
-    const end = span.end_timestamp
-      ? new Date(span.end_timestamp).getTime()
-      : Date.now();
-    const duration = (end - start) / (1000 * 60 * 60); // Convert to hours
-    return total + duration;
-  }, 0);
-  
-  // Round to nearest 0.25 hour increment
-  return Math.round(totalHours * 4) / 4;
-}
-
-// Round to nearest 0.25 hour increment
-function roundToQuarterHour(hours: number): number {
-  return Math.round(hours * 4) / 4;
-}
-
 export default function LogEntryEditor({
   entry,
   date,
@@ -43,6 +22,12 @@ export default function LogEntryEditor({
   onTimeSpanAdjust,
   onTimeSpanUpdate,
 }: LogEntryEditorProps) {
+  console.log("[LogEntryEditor] render", {
+    entryId: entry?.id,
+    timespansCount: timespans.length,
+    hasOnTimeSpanUpdate: !!onTimeSpanUpdate,
+    hasOnTimeSpanAdjust: !!onTimeSpanAdjust,
+  });
   // Calculate hours from TimeSpans (primary source)
   const timespanHours = useMemo(
     () => calculateHoursFromTimeSpans(timespans),

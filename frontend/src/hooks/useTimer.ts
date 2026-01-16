@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { Timer, TimeSpan } from "../types";
+import { parseUTCDate } from "../utils/timeUtils";
 import { getTimeSpans } from "../api";
 
 interface UseTimerResult {
@@ -30,7 +31,8 @@ export function useTimer(
 
     const calculateElapsed = () => {
       if (timer.status === "running") {
-        const startTime = new Date(timer.started_at).getTime();
+        // Parse timestamp as UTC to avoid timezone shifts
+        const startTime = parseUTCDate(timer.started_at).getTime();
         const now = Date.now();
         const elapsed = Math.floor((now - startTime) / 1000);
         setElapsedSeconds(elapsed);
@@ -62,10 +64,11 @@ export function useTimer(
   }, [timer]);
 
   // Calculate accumulated hours from completed TimeSpans
+  // Parse timestamps as UTC to avoid timezone shifts
   const accumulatedHours = timespans.reduce((total, span) => {
     if (span.end_timestamp) {
-      const start = new Date(span.start_timestamp).getTime();
-      const end = new Date(span.end_timestamp).getTime();
+      const start = parseUTCDate(span.start_timestamp).getTime();
+      const end = parseUTCDate(span.end_timestamp).getTime();
       const duration = (end - start) / (1000 * 60 * 60); // Convert to hours
       return total + duration;
     }

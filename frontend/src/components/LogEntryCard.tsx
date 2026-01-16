@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import type { LogEntryCardProps } from "../types";
 import TimerControls from "./TimerControls";
 import TimeSpanList from "./TimeSpanList";
+import { calculateHoursFromTimeSpans, roundToQuarterHour } from "../utils/timeUtils";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Routine Work": "#6c8cff",
@@ -21,9 +22,23 @@ export default function LogEntryCard({
   onPauseTimer,
   onResumeTimer,
   onStopTimer,
+  onTimeSpanAdjust,
+  onTimeSpanUpdate,
 }: LogEntryCardProps) {
+  // Calculate hours from timespans when available, otherwise use entry.hours
+  // This ensures the displayed hours match what's shown in TimeSpanList
+  const displayHours = useMemo(() => {
+    if (timespans && timespans.length > 0) {
+      const timespanHours = calculateHoursFromTimeSpans(timespans);
+      const additionalHours = entry.additional_hours || 0;
+      return roundToQuarterHour(timespanHours + additionalHours);
+    }
+    // Fall back to entry.hours if timespans aren't loaded yet
+    return entry.hours;
+  }, [timespans, entry.hours, entry.additional_hours]);
+
   return (
-    <article className="log-card" onClick={() => onEdit(entry)}>
+    <article className="log-card">
       <header className="log-card-header">
         <div>
           <div className="log-project">{entry.project_name || `Project #${entry.project_id}`}</div>
@@ -34,7 +49,7 @@ export default function LogEntryCard({
             {entry.category}
           </span>
         </div>
-        <div className="log-hours">{entry.hours.toFixed(1)}h</div>
+        <div className="log-hours">{displayHours.toFixed(1)}h</div>
       </header>
       <section className="log-card-body">
         <ReactMarkdown>{entry.task}</ReactMarkdown>
@@ -44,7 +59,11 @@ export default function LogEntryCard({
           </div>
         ) : null}
         {timespans && timespans.length > 0 && (
-          <TimeSpanList timespans={timespans} />
+          <TimeSpanList 
+            timespans={timespans}
+            onAdjust={onTimeSpanAdjust}
+            onUpdate={onTimeSpanUpdate}
+          />
         )}
       </section>
       <footer className="log-card-footer">
@@ -78,8 +97,9 @@ export default function LogEntryCard({
               event.stopPropagation();
               onEdit(entry);
             }}
+            title="Edit"
           >
-            Edit
+            ✏️
           </button>
           <button
             className="ghost-button danger"

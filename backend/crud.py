@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from typing import Optional
 
@@ -263,7 +263,9 @@ def calculate_timespan_hours(db: Session, log_entry_id: int) -> float:
     Rounds to nearest 0.25 hour increment."""
     timespans = get_timespans_for_entry(db, log_entry_id)
     total_hours = 0.0
-    now = datetime.utcnow()
+    # Use timezone-aware UTC datetime, then convert to naive for comparison
+    # (database stores naive UTC datetimes)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     
     for span in timespans:
         end_time = span.end_timestamp if span.end_timestamp else now
@@ -321,9 +323,11 @@ def create_timer(db: Session, request: TimerStartRequest):
         log_entry_id = new_entry.id
     
     # Create new timer
+    # Use timezone-aware UTC datetime, then convert to naive for database storage
+    # (SQLAlchemy DateTime columns store as naive UTC)
     timer = Timer(
         log_entry_id=log_entry_id,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
         status=TimerStatus.RUNNING,
     )
     db.add(timer)
@@ -342,7 +346,8 @@ def pause_timer(db: Session, timer_id: int):
         return timer
     
     # Create TimeSpan for the current session
-    now = datetime.utcnow()
+    # Use timezone-aware UTC datetime, then convert to naive for database storage
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     timespan = TimeSpan(
         log_entry_id=timer.log_entry_id,
         start_timestamp=timer.started_at,
@@ -367,7 +372,8 @@ def resume_timer(db: Session, timer_id: int):
         return timer
     
     # Set new started_at and status
-    timer.started_at = datetime.utcnow()
+    # Use timezone-aware UTC datetime, then convert to naive for database storage
+    timer.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
     timer.status = TimerStatus.RUNNING
     db.commit()
     db.refresh(timer)
@@ -380,7 +386,8 @@ def stop_timer(db: Session, timer_id: int):
     if not timer:
         return None
     
-    now = datetime.utcnow()
+    # Use timezone-aware UTC datetime, then convert to naive for database storage
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     
     # Create final TimeSpan
     timespan = TimeSpan(

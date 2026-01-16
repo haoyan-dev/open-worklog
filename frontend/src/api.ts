@@ -7,6 +7,13 @@ import type {
   TimeSpan,
 } from "./types";
 
+/**
+ * API client for Open Worklog backend.
+ * 
+ * All timestamps are handled as UTC. The backend serializes datetime objects
+ * as ISO 8601 strings with 'Z' suffix (UTC indicator). The frontend should
+ * ensure all timestamps sent to the backend include timezone info.
+ */
 const API_BASE = "/api/v1";
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -104,6 +111,16 @@ export function adjustTimeSpan(
   });
 }
 
+/**
+ * Update a TimeSpan's timestamps.
+ * 
+ * Timestamps should be ISO 8601 strings with UTC timezone indicator ('Z' suffix).
+ * The backend expects and returns all timestamps in UTC format.
+ * 
+ * @param timespanId - The ID of the TimeSpan to update
+ * @param startTimestamp - ISO 8601 UTC timestamp string (e.g., "2024-01-01T12:00:00Z")
+ * @param endTimestamp - Optional ISO 8601 UTC timestamp string
+ */
 export function updateTimeSpan(
   timespanId: number,
   startTimestamp: string,

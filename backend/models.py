@@ -1,10 +1,17 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, Date, DateTime, Enum as SqlEnum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from db import Base
+
+
+def utc_now():
+    """Return current UTC time as naive datetime for database storage.
+    SQLAlchemy DateTime columns store as naive UTC datetime objects.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Category(str, Enum):
@@ -25,7 +32,7 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
     log_entries = relationship("LogEntry", back_populates="project_rel")
 
 
@@ -57,7 +64,7 @@ class TimeSpan(Base):
     log_entry_id = Column(Integer, ForeignKey("log_entries.id"), nullable=False, index=True)
     start_timestamp = Column(DateTime, nullable=False)
     end_timestamp = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
     log_entry = relationship("LogEntry", back_populates="timespans")
 
 
