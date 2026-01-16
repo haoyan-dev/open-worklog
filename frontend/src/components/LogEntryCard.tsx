@@ -1,6 +1,8 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import type { LogEntryCardProps } from "../types";
+import TimerControls from "./TimerControls";
+import TimeSpanList from "./TimeSpanList";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Routine Work": "#6c8cff",
@@ -13,6 +15,12 @@ export default function LogEntryCard({
   entry,
   onEdit,
   onDelete,
+  activeTimer,
+  timespans = [],
+  onStartTimer,
+  onPauseTimer,
+  onResumeTimer,
+  onStopTimer,
 }: LogEntryCardProps) {
   return (
     <article className="log-card" onClick={() => onEdit(entry)}>
@@ -35,9 +43,34 @@ export default function LogEntryCard({
             <ReactMarkdown>{entry.notes}</ReactMarkdown>
           </div>
         ) : null}
+        {timespans && timespans.length > 0 && (
+          <TimeSpanList timespans={timespans} />
+        )}
       </section>
       <footer className="log-card-footer">
-        <span>{entry.status || "Completed"}</span>
+        <div className="log-card-footer-left">
+          <span>{entry.status || "Completed"}</span>
+          {onStartTimer && (
+            <TimerControls
+              timer={activeTimer}
+              entryId={entry.id}
+              timespans={timespans}
+              disabled={activeTimer !== null && activeTimer.log_entry_id !== entry.id}
+              onStart={() => {
+                if (onStartTimer) onStartTimer(entry.id);
+              }}
+              onPause={() => {
+                if (activeTimer && onPauseTimer) onPauseTimer(activeTimer.id);
+              }}
+              onResume={() => {
+                if (activeTimer && onResumeTimer) onResumeTimer(activeTimer.id);
+              }}
+              onStop={() => {
+                if (activeTimer && onStopTimer) onStopTimer(activeTimer.id);
+              }}
+            />
+          )}
+        </div>
         <div className="log-actions">
           <button
             className="ghost-button"

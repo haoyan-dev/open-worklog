@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import type { LogEntryEditorProps, LogEntryCreate, Category } from "../types";
+import type { LogEntryEditorProps, LogEntryCreate, Category, TimeSpan } from "../types";
+import TimeSpanList from "./TimeSpanList";
 
 const CATEGORIES: Category[] = [
   "Routine Work",
@@ -8,12 +9,15 @@ const CATEGORIES: Category[] = [
   "Company Contribution",
 ];
 
+const HOUR_BUTTONS = [0.25, 0.5, 1, 2, 4, 8];
+
 export default function LogEntryEditor({
   entry,
   date,
   onSave,
   onCancel,
-}: LogEntryEditorProps) {
+  timespans = [],
+}: LogEntryEditorProps & { timespans?: TimeSpan[] }) {
   const [formState, setFormState] = useState<LogEntryCreate>(
     entry || {
       date,
@@ -65,14 +69,30 @@ export default function LogEntryEditor({
         </label>
         <label>
           Hours
-          <input
-            type="number"
-            min="0.25"
-            step="0.25"
-            value={formState.hours}
-            onChange={updateField("hours")}
-            required
-          />
+          <div className="hours-input-group">
+            <input
+              type="number"
+              min="0.25"
+              step="0.25"
+              value={formState.hours}
+              onChange={updateField("hours")}
+              required
+            />
+            <div className="hour-buttons">
+              {HOUR_BUTTONS.map((hours) => (
+                <button
+                  key={hours}
+                  type="button"
+                  className="hour-button"
+                  onClick={() =>
+                    setFormState((prev) => ({ ...prev, hours }))
+                  }
+                >
+                  {hours}h
+                </button>
+              ))}
+            </div>
+          </div>
         </label>
       </div>
       <label>
@@ -84,6 +104,11 @@ export default function LogEntryEditor({
           required
         />
       </label>
+      {timespans && timespans.length > 0 && (
+        <div className="log-editor-timespans">
+          <TimeSpanList timespans={timespans} collapsed={false} />
+        </div>
+      )}
       <label>
         Notes
         <textarea

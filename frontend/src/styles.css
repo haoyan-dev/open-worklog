@@ -175,6 +175,13 @@ body {
   align-items: center;
 }
 
+.log-card-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .log-actions {
   display: flex;
   gap: 8px;
@@ -235,4 +242,195 @@ body {
 
 .error {
   color: #d94040;
+}
+
+/* Timer Controls Styles */
+.timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer-indicator {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.timer-indicator.running {
+  color: #4fc37d;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.timer-indicator.paused {
+  color: #ff8c5a;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.timer-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2330;
+}
+
+.timer-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.timer-button {
+  padding: 6px 12px;
+  border: 1px solid #d9dce7;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timer-button:hover:not(:disabled) {
+  background: #f5f6fa;
+  border-color: #1f57ff;
+}
+
+.timer-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.timer-button.start {
+  color: #4fc37d;
+  border-color: #4fc37d;
+}
+
+.timer-button.pause {
+  color: #ff8c5a;
+  border-color: #ff8c5a;
+}
+
+.timer-button.resume {
+  color: #1f57ff;
+  border-color: #1f57ff;
+}
+
+.timer-button.stop {
+  color: #d94040;
+  border-color: #d94040;
+}
+
+/* Hour Buttons Styles */
+.hours-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hour-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.hour-button {
+  padding: 6px 12px;
+  border: 1px solid #d9dce7;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hour-button:hover {
+  background: #f5f6fa;
+  border-color: #1f57ff;
+  color: #1f57ff;
+}
+
+/* TimeSpan List Styles */
+.timespan-list {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f5f6fa;
+  border-radius: 8px;
+  border: 1px solid #eef0f5;
+}
+
+.timespan-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: #5b6070;
+  font-weight: 500;
+}
+
+.timespan-toggle {
+  font-size: 10px;
+  color: #7d8496;
+}
+
+.timespan-list-items {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timespan-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #eef0f5;
+}
+
+.timespan-index {
+  font-weight: 600;
+  font-size: 12px;
+  color: #7d8496;
+  min-width: 24px;
+}
+
+.timespan-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timespan-time {
+  font-size: 12px;
+  color: #5b6070;
+}
+
+.timespan-duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2330;
+}
+
+.log-editor-timespans {
+  margin-bottom: 12px;
+}
+
+/* Active Timer Indicator */
+.log-card:has(.timer-indicator.running) {
+  border: 2px solid #4fc37d;
+  box-shadow: 0 6px 16px rgba(79, 195, 125, 0.15);
 }

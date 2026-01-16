@@ -4,6 +4,8 @@ export type Category =
   | "Team Contribution"
   | "Company Contribution";
 
+export type TimerStatus = "running" | "paused";
+
 export interface LogEntry {
   id: number;
   date: string; // ISO date string (YYYY-MM-DD)
@@ -13,6 +15,25 @@ export interface LogEntry {
   hours: number;
   status?: string;
   notes?: string;
+}
+
+export interface TimeSpan {
+  id: number;
+  log_entry_id: number;
+  start_timestamp: string; // ISO datetime string
+  end_timestamp?: string; // ISO datetime string
+  created_at: string; // ISO datetime string
+}
+
+export interface Timer {
+  id: number;
+  log_entry_id?: number;
+  started_at: string; // ISO datetime string
+  status: TimerStatus;
+  date?: string; // ISO date string
+  category?: Category;
+  project?: string;
+  task?: string;
 }
 
 export interface LogEntryCreate {
@@ -41,6 +62,12 @@ export interface LogEntryCardProps {
   entry: LogEntry;
   onEdit: (entry: LogEntry) => void;
   onDelete: (id: number) => void;
+  activeTimer?: Timer | null;
+  timespans?: TimeSpan[];
+  onStartTimer?: (entryId: number) => void;
+  onPauseTimer?: (timerId: number) => void;
+  onResumeTimer?: (timerId: number) => void;
+  onStopTimer?: (timerId: number) => void;
 }
 
 export interface LogEntryEditorProps {
@@ -48,4 +75,13 @@ export interface LogEntryEditorProps {
   date: string;
   onSave: (payload: LogEntryCreate) => void;
   onCancel: () => void;
+  timespans?: TimeSpan[];
+}
+
+export interface TimerStartRequest {
+  log_entry_id?: number;
+  date?: string;
+  category?: Category;
+  project?: string;
+  task?: string;
 }
