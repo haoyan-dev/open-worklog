@@ -92,3 +92,13 @@ export function cancelTimer(timerId: number): Promise<void> {
 export function getTimeSpans(logId: number): Promise<TimeSpan[]> {
   return request<TimeSpan[]>(`${API_BASE}/logs/${logId}/timespans`);
 }
+
+export function adjustTimeSpan(
+  timespanId: number,
+  hours: number
+): Promise<TimeSpan> {
+  return request<TimeSpan>(`${API_BASE}/timespans/${timespanId}/adjust`, {
+    method: "POST",
+    body: JSON.stringify({ hours }),
+  });
+}

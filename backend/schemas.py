@@ -11,7 +11,8 @@ class LogEntryBase(BaseModel):
     category: Category
     project: str = Field(..., max_length=200)
     task: str
-    hours: float = Field(..., ge=0)  # Allow 0 hours (default when no TimeSpans)
+    hours: float = Field(..., ge=0)  # Total hours (calculated: TimeSpan hours + additional_hours)
+    additional_hours: float = Field(default=0.0, ge=0)  # Manually added hours
     status: Optional[str] = "Completed"
     notes: Optional[str] = None
 
@@ -53,6 +54,10 @@ class TimeSpanRead(TimeSpanBase):
 
     class Config:
         from_attributes = True
+
+
+class TimeSpanAdjustRequest(BaseModel):
+    hours: float  # Hours to add (positive) or subtract (negative) from end_timestamp
 
 
 class TimerRead(BaseModel):

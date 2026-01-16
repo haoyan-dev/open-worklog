@@ -12,7 +12,8 @@ export interface LogEntry {
   category: Category;
   project: string;
   task: string;
-  hours: number;
+  hours: number; // Total hours = TimeSpan hours + additional_hours
+  additional_hours: number; // Manually added hours
   status?: string;
   notes?: string;
 }
@@ -41,7 +42,8 @@ export interface LogEntryCreate {
   category: Category;
   project: string;
   task: string;
-  hours: number;
+  hours: number; // Total hours (calculated on backend)
+  additional_hours: number; // Manually added hours
   status?: string;
   notes?: string;
 }
@@ -76,6 +78,7 @@ export interface LogEntryEditorProps {
   onSave: (payload: LogEntryCreate) => void;
   onCancel: () => void;
   timespans?: TimeSpan[];
+  onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
 }
 
 export interface TimerStartRequest {

@@ -27,7 +27,8 @@ class LogEntry(Base):
     category = Column(SqlEnum(Category), nullable=False)
     project = Column(String(200), nullable=False)
     task = Column(Text, nullable=False)
-    hours = Column(Float, nullable=False)
+    hours = Column(Float, nullable=False)  # Total hours = TimeSpan hours + additional_hours
+    additional_hours = Column(Float, nullable=False, default=0.0)  # Manually added hours
     status = Column(String(50), nullable=True, default="Completed")
     notes = Column(Text, nullable=True)
     timespans = relationship("TimeSpan", back_populates="log_entry", cascade="all, delete-orphan")

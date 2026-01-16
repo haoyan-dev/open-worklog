@@ -4,11 +4,15 @@ import type { TimeSpan } from "../types";
 interface TimeSpanListProps {
   timespans: TimeSpan[];
   collapsed?: boolean;
+  onAdjust?: (timespanId: number, hours: number) => void;
 }
+
+const ADJUST_BUTTONS = [0.25, 0.5, 1];
 
 export default function TimeSpanList({
   timespans,
   collapsed: initiallyCollapsed = true,
+  onAdjust,
 }: TimeSpanListProps) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
 
@@ -65,27 +69,71 @@ export default function TimeSpanList({
       </div>
       {!collapsed && (
         <div className="timespan-list-items">
-          {timespans.map((span, index) => (
-            <div key={span.id} className="timespan-item">
-              <div className="timespan-index">#{index + 1}</div>
-              <div className="timespan-details">
-                <div className="timespan-time">
-                  {formatDateTime(span.start_timestamp)}
-                  {span.end_timestamp ? (
-                    <>
-                      {" → "}
-                      {formatDateTime(span.end_timestamp)}
-                    </>
-                  ) : (
-                    " → (running)"
-                  )}
+          {timespans.map((span, index) => {
+            const duration = (() => {
+              const start = new Date(span.start_timestamp).getTime();
+              const end = span.end_timestamp
+                ? new Date(span.end_timestamp).getTime()
+                : Date.now();
+              return (end - start) / (1000 * 60 * 60);
+            })();
+            
+            return (
+              <div key={span.id} className="timespan-item">
+                <div className="timespan-index">#{index + 1}</div>
+                <div className="timespan-details">
+                  <div className="timespan-time">
+                    {formatDateTime(span.start_timestamp)}
+                    {span.end_timestamp ? (
+                      <>
+                        {" → "}
+                        {formatDateTime(span.end_timestamp)}
+                      </>
+                    ) : (
+                      " → (running)"
+                    )}
+                  </div>
+                  <div className="timespan-duration">
+                    {formatDuration(span.start_timestamp, span.end_timestamp)}
+                  </div>
                 </div>
-                <div className="timespan-duration">
-                  {formatDuration(span.start_timestamp, span.end_timestamp)}
-                </div>
+                {onAdjust && span.end_timestamp && (
+                  <div className="timespan-adjust">
+                    <div className="timespan-adjust-buttons">
+                      {ADJUST_BUTTONS.map((hours) => (
+                        <React.Fragment key={hours}>
+                          <button
+                            type="button"
+                            className="timespan-adjust-btn add"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAdjust(span.id, hours);
+                            }}
+                            title={`Add ${hours}h`}
+                          >
+                            +{hours}h
+                          </button>
+                          {duration > hours && (
+                            <button
+                              type="button"
+                              className="timespan-adjust-btn subtract"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAdjust(span.id, -hours);
+                              }}
+                              title={`Subtract ${hours}h`}
+                            >
+                              -{hours}h
+                            </button>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

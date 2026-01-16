@@ -332,54 +332,164 @@ body {
 }
 
 /* Hour Buttons Styles */
-.hours-input-group {
+.hours-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.hours-display {
+.hours-breakdown {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f6fa;
+  border-radius: 8px;
+  border: 1px solid #eef0f5;
 }
 
-.hours-readonly {
-  padding: 8px 10px;
-  border-radius: 8px;
+.hours-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hours-row.total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #eef0f5;
+  font-weight: 600;
+}
+
+.hours-label {
+  font-size: 13px;
+  color: #5b6070;
+  min-width: 120px;
+}
+
+.hours-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2330;
+}
+
+.hours-value.readonly {
+  color: #7d8496;
+}
+
+.hours-value.total {
+  color: #1f57ff;
+  font-size: 16px;
+}
+
+.hours-input-small {
+  padding: 6px 10px;
+  border-radius: 6px;
   border: 1px solid #d9dce7;
   font-size: 14px;
+  width: 80px;
+}
+
+.hours-input-small.readonly {
   background: #f5f6fa;
   color: #5b6070;
   cursor: not-allowed;
 }
 
-.hours-source {
-  font-size: 11px;
-  color: #7d8496;
-  font-style: italic;
+.hour-buttons-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-items: center;
 }
 
-.hour-buttons {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+.hour-button-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid #eef0f5;
+  border-radius: 6px;
+}
+
+.hour-button-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5b6070;
+  min-width: 35px;
+  text-align: center;
 }
 
 .hour-button {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 1px solid #d9dce7;
-  border-radius: 6px;
+  border-radius: 4px;
   background: white;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.hour-button:hover {
+.hour-button.add {
+  color: #4fc37d;
+  border-color: #4fc37d;
+}
+
+.hour-button.add:hover:not(:disabled) {
+  background: rgba(79, 195, 125, 0.1);
+}
+
+.hour-button.subtract {
+  color: #ff8c5a;
+  border-color: #ff8c5a;
+}
+
+.hour-button.subtract:hover:not(:disabled) {
+  background: rgba(255, 140, 90, 0.1);
+}
+
+.hour-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Hours Adjust Panel */
+.hours-adjust-panel {
+  margin-top: 8px;
+  padding: 8px;
   background: #f5f6fa;
-  border-color: #1f57ff;
-  color: #1f57ff;
+  border-radius: 8px;
+  border: 1px solid #eef0f5;
+}
+
+.hours-adjust-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: #5b6070;
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.hours-adjust-toggle {
+  font-size: 10px;
+  color: #7d8496;
+}
+
+.hours-adjust-content {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eef0f5;
 }
 
 /* TimeSpan List Styles */
@@ -420,6 +530,7 @@ body {
   background: white;
   border-radius: 6px;
   border: 1px solid #eef0f5;
+  align-items: center;
 }
 
 .timespan-index {
@@ -445,6 +556,47 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: #1f2330;
+}
+
+.timespan-adjust {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.timespan-adjust-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.timespan-adjust-btn {
+  padding: 4px 8px;
+  border: 1px solid #d9dce7;
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.timespan-adjust-btn.add {
+  color: #4fc37d;
+  border-color: #4fc37d;
+}
+
+.timespan-adjust-btn.add:hover {
+  background: rgba(79, 195, 125, 0.1);
+}
+
+.timespan-adjust-btn.subtract {
+  color: #ff8c5a;
+  border-color: #ff8c5a;
+}
+
+.timespan-adjust-btn.subtract:hover {
+  background: rgba(255, 140, 90, 0.1);
 }
 
 .log-editor-timespans {

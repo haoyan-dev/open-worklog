@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -21,19 +21,19 @@ def get_log(db: Session, log_id: int):
 
 
 def create_log(db: Session, log: LogEntryCreate):
-    entry = LogEntry(**log.dict())
+    log_dict = log.dict()
+    additional_hours = log_dict.pop("additional_hours", 0.0)
+    # Remove hours since we'll recalculate it
+    log_dict.pop("hours", None)
+    
+    # Set initial hours to 0, will be recalculated
+    entry = LogEntry(**log_dict, additional_hours=round(additional_hours * 4) / 4.0, hours=0.0)
     db.add(entry)
     db.commit()
     db.refresh(entry)
     
-    # If TimeSpans exist, calculate hours from them (primary source)
-    # Otherwise, use manual input (round to 0.25)
-    calculated_hours = calculate_entry_hours(db, entry.id)
-    if calculated_hours > 0:
-        entry.hours = calculated_hours
-    else:
-        # No TimeSpans, use manual input (round to 0.25)
-        entry.hours = round(entry.hours * 4) / 4.0
+    # Calculate total hours = TimeSpan hours + additional hours
+    entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
     
     db.commit()
     db.refresh(entry)
@@ -45,23 +45,19 @@ def update_log(db: Session, log_id: int, log: LogEntryUpdate):
     if not entry:
         return None
     
-    # Store the manual hours input before updating
-    manual_hours = log.dict().get("hours", entry.hours)
+    log_dict = log.dict()
+    additional_hours = log_dict.pop("additional_hours", entry.additional_hours)
     
-    # Update all fields
-    for field, value in log.dict().items():
-        setattr(entry, field, value)
-    db.commit()
-    db.refresh(entry)
+    # Update all fields except hours (which will be recalculated)
+    for field, value in log_dict.items():
+        if field != "hours":
+            setattr(entry, field, value)
     
-    # If TimeSpans exist, calculate hours from them (primary source)
-    # Otherwise, use manual input
-    calculated_hours = calculate_entry_hours(db, entry.id)
-    if calculated_hours > 0:
-        entry.hours = calculated_hours
-    else:
-        # No TimeSpans, use manual input (round to 0.25)
-        entry.hours = round(manual_hours * 4) / 4.0
+    # Update additional_hours
+    entry.additional_hours = round(additional_hours * 4) / 4.0
+    
+    # Calculate total hours = TimeSpan hours + additional hours
+    entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
     
     db.commit()
     db.refresh(entry)
@@ -110,8 +106,46 @@ def get_timespans_for_entry(db: Session, log_entry_id: int):
     )
 
 
-def calculate_entry_hours(db: Session, log_entry_id: int) -> float:
-    """Calculate total hours from all TimeSpans for an entry.
+def get_timespan(db: Session, timespan_id: int):
+    return db.query(TimeSpan).filter(TimeSpan.id == timespan_id).first()
+
+
+def adjust_timespan(db: Session, timespan_id: int, hours: float):
+    """Adjust TimeSpan end_timestamp by adding/subtracting hours.
+    Rounds to nearest 0.25 hour increment."""
+    timespan = get_timespan(db, timespan_id)
+    if not timespan:
+        return None
+    
+    if not timespan.end_timestamp:
+        # If no end_timestamp, can't adjust
+        return timespan
+    
+    # Calculate new end_timestamp
+    hours_rounded = round(hours * 4) / 4.0
+    adjustment = timedelta(hours=hours_rounded)
+    new_end = timespan.end_timestamp + adjustment
+    
+    # Ensure new_end is after start_timestamp
+    if new_end <= timespan.start_timestamp:
+        new_end = timespan.start_timestamp + timedelta(minutes=15)  # Minimum 0.25h
+    
+    timespan.end_timestamp = new_end
+    db.commit()
+    db.refresh(timespan)
+    
+    # Recalculate total hours for the log entry
+    entry = get_log(db, timespan.log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
+        db.refresh(entry)
+    
+    return timespan
+
+
+def calculate_timespan_hours(db: Session, log_entry_id: int) -> float:
+    """Calculate hours from all TimeSpans for an entry.
     Rounds to nearest 0.25 hour increment."""
     timespans = get_timespans_for_entry(db, log_entry_id)
     total_hours = 0.0
@@ -127,6 +161,15 @@ def calculate_entry_hours(db: Session, log_entry_id: int) -> float:
         total_hours = round(total_hours * 4) / 4.0
     
     return total_hours
+
+
+def calculate_total_hours(db: Session, log_entry_id: int, additional_hours: float = 0.0) -> float:
+    """Calculate total hours = TimeSpan hours + additional hours.
+    Rounds to nearest 0.25 hour increment."""
+    timespan_hours = calculate_timespan_hours(db, log_entry_id)
+    additional_hours_rounded = round(additional_hours * 4) / 4.0
+    total = timespan_hours + additional_hours_rounded
+    return round(total * 4) / 4.0
 
 
 # Timer CRUD operations
@@ -233,13 +276,10 @@ def stop_timer(db: Session, timer_id: int):
     )
     db.add(timespan)
     
-    # Calculate total hours from all TimeSpans
-    total_hours = calculate_entry_hours(db, timer.log_entry_id)
-    
-    # Update log entry hours
+    # Update log entry hours = TimeSpan hours + additional hours
     entry = get_log(db, timer.log_entry_id)
     if entry:
-        entry.hours = total_hours
+        entry.hours = calculate_total_hours(db, timer.log_entry_id, entry.additional_hours)
         db.commit()
         db.refresh(entry)
     

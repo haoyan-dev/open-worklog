@@ -106,10 +106,22 @@ def cancel_timer(timer_id: int, db: Session = Depends(get_db)):
     return {"deleted": True}
 
 
-# TimeSpan API endpoint
+# TimeSpan API endpoints
 @app.get("/api/v1/logs/{log_id}/timespans", response_model=list[schemas.TimeSpanRead])
 def get_timespans(log_id: int, db: Session = Depends(get_db)):
     entry = crud.get_log(db, log_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Log entry not found")
     return crud.get_timespans_for_entry(db, log_id)
+
+
+@app.post("/api/v1/timespans/{timespan_id}/adjust", response_model=schemas.TimeSpanRead)
+def adjust_timespan(
+    timespan_id: int,
+    request: schemas.TimeSpanAdjustRequest,
+    db: Session = Depends(get_db),
+):
+    timespan = crud.adjust_timespan(db, timespan_id, request.hours)
+    if not timespan:
+        raise HTTPException(status_code=404, detail="TimeSpan not found")
+    return timespan

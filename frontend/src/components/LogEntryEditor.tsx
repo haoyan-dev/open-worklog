@@ -39,14 +39,13 @@ export default function LogEntryEditor({
   onSave,
   onCancel,
   timespans = [],
-}: LogEntryEditorProps & { timespans?: TimeSpan[] }) {
-  // Calculate hours from TimeSpans if they exist
-  const calculatedHours = useMemo(
+  onTimeSpanAdjust,
+}: LogEntryEditorProps) {
+  // Calculate hours from TimeSpans (primary source)
+  const timespanHours = useMemo(
     () => calculateHoursFromTimeSpans(timespans),
     [timespans]
   );
-  
-  const hasTimeSpans = timespans.length > 0;
   
   const [formState, setFormState] = useState<LogEntryCreate>(
     entry || {
@@ -55,35 +54,52 @@ export default function LogEntryEditor({
       project: "",
       task: "",
       hours: 0,
+      additional_hours: 0,
       status: "Completed",
       notes: "",
     }
   );
 
-  // Update hours when calculated hours change or when entry changes
+  // Update form state when entry changes
   useEffect(() => {
-    if (hasTimeSpans && calculatedHours > 0) {
-      setFormState((prev) => ({ ...prev, hours: calculatedHours }));
-    } else if (entry) {
-      setFormState((prev) => ({ ...prev, hours: entry.hours || 0 }));
+    if (entry) {
+      setFormState({
+        date: entry.date,
+        category: entry.category,
+        project: entry.project,
+        task: entry.task,
+        hours: entry.hours,
+        additional_hours: entry.additional_hours || 0,
+        status: entry.status || "Completed",
+        notes: entry.notes || "",
+      });
     }
-  }, [calculatedHours, hasTimeSpans, entry]);
+  }, [entry]);
 
   const updateField = (field: keyof LogEntryCreate) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const value =
-      field === "hours" ? roundToQuarterHour(Number(event.target.value)) : event.target.value;
+      field === "additional_hours" 
+        ? roundToQuarterHour(Number(event.target.value)) 
+        : event.target.value;
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Calculate total hours = TimeSpan hours + additional hours
+  const totalHours = roundToQuarterHour(timespanHours + formState.additional_hours);
+  
+  const [adjustPanelExpanded, setAdjustPanelExpanded] = useState(false);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // If TimeSpans exist, use calculated hours; otherwise use manual input (rounded)
-    const finalHours = hasTimeSpans && calculatedHours > 0 
-      ? calculatedHours 
-      : roundToQuarterHour(formState.hours);
-    onSave({ ...formState, hours: finalHours, date });
+    // Total hours will be calculated on backend, but we send it for consistency
+    onSave({ 
+      ...formState, 
+      hours: totalHours,
+      additional_hours: formState.additional_hours,
+      date 
+    });
   };
 
   return (
@@ -112,42 +128,65 @@ export default function LogEntryEditor({
         </label>
         <label>
           Hours
-          {hasTimeSpans && calculatedHours > 0 ? (
-            <div className="hours-display">
-              <input
-                type="number"
-                value={calculatedHours.toFixed(2)}
-                readOnly
-                className="hours-readonly"
-              />
-              <span className="hours-source">(calculated from time spans)</span>
-            </div>
-          ) : (
-            <div className="hours-input-group">
-              <input
-                type="number"
-                min="0"
-                step="0.25"
-                value={formState.hours}
-                onChange={updateField("hours")}
-                required={false}
-              />
-              <div className="hour-buttons">
-                {HOUR_BUTTONS.map((hours) => (
-                  <button
-                    key={hours}
-                    type="button"
-                    className="hour-button"
-                    onClick={() =>
-                      setFormState((prev) => ({ ...prev, hours }))
-                    }
-                  >
-                    {hours}h
-                  </button>
-                ))}
+          <div className="hours-section">
+            <div className="hours-breakdown">
+              <div className="hours-row">
+                <span className="hours-label">TimeSpan hours:</span>
+                <span className="hours-value readonly">{timespanHours.toFixed(2)}h</span>
+              </div>
+              <div className="hours-row">
+                <span className="hours-label">Additional hours:</span>
+                <span className="hours-value readonly">{formState.additional_hours.toFixed(2)}h</span>
+              </div>
+              <div className="hours-adjust-panel">
+                <div
+                  className="hours-adjust-header"
+                  onClick={() => setAdjustPanelExpanded(!adjustPanelExpanded)}
+                >
+                  <span>Adjust hours</span>
+                  <span className="hours-adjust-toggle">{adjustPanelExpanded ? "▲" : "▼"}</span>
+                </div>
+                {adjustPanelExpanded && (
+                  <div className="hours-adjust-content">
+                    <div className="hour-buttons-group">
+                      {HOUR_BUTTONS.map((hourValue) => (
+                        <div key={hourValue} className="hour-button-group">
+                          <span className="hour-button-label">{hourValue}h</span>
+                          <button
+                            type="button"
+                            className="hour-button add"
+                            onClick={() => {
+                              const newAdditional = roundToQuarterHour(formState.additional_hours + hourValue);
+                              setFormState((prev) => ({ ...prev, additional_hours: newAdditional }));
+                            }}
+                            title={`Add ${hourValue}h`}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="hour-button subtract"
+                            onClick={() => {
+                              const newAdditional = Math.max(0, roundToQuarterHour(formState.additional_hours - hourValue));
+                              setFormState((prev) => ({ ...prev, additional_hours: newAdditional }));
+                            }}
+                            disabled={formState.additional_hours < hourValue}
+                            title={`Subtract ${hourValue}h`}
+                          >
+                            -
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="hours-row total">
+                <span className="hours-label">Total hours:</span>
+                <span className="hours-value total">{totalHours.toFixed(2)}h</span>
               </div>
             </div>
-          )}
+          </div>
         </label>
       </div>
       <label>
@@ -161,7 +200,11 @@ export default function LogEntryEditor({
       </label>
       {timespans && timespans.length > 0 && (
         <div className="log-editor-timespans">
-          <TimeSpanList timespans={timespans} collapsed={false} />
+          <TimeSpanList 
+            timespans={timespans} 
+            collapsed={false}
+            onAdjust={onTimeSpanAdjust}
+          />
         </div>
       )}
       <label>

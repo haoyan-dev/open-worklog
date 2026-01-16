@@ -12,6 +12,7 @@ import {
   resumeTimer,
   stopTimer,
   getTimeSpans,
+  adjustTimeSpan,
 } from "./api";
 import DateNavigator from "./components/DateNavigator";
 import DailySnapshot from "./components/DailySnapshot";
@@ -109,6 +110,22 @@ export default function App() {
     },
   });
 
+  const adjustTimeSpanMutation = useMutation<
+    TimeSpan,
+    Error,
+    { timespanId: number; hours: number }
+  >({
+    mutationFn: ({ timespanId, hours }) => adjustTimeSpan(timespanId, hours),
+    onSuccess: () => {
+      // Invalidate timespans query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: ["timespans"],
+        exact: false 
+      });
+      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
+    },
+  });
+
   // Fetch timespans for each entry
   const timespansQueries = useQuery<Record<number, TimeSpan[]>>({
     queryKey: ["timespans", logs.map((e) => e.id).join(",")],
@@ -178,6 +195,9 @@ export default function App() {
                 onSave={handleSave}
                 onCancel={() => setEditingEntry(null)}
                 timespans={timespansMap[editingEntry.id] || []}
+                onTimeSpanAdjust={(timespanId, hours) =>
+                  adjustTimeSpanMutation.mutate({ timespanId, hours })
+                }
               />
             ) : (
               <LogEntryCard
