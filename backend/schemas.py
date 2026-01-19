@@ -132,6 +132,11 @@ class TimeSpanUpdate(BaseModel):
         return v
 
 
+class TimeSpanCreateRequest(TimeSpanUpdate):
+    # Require end_timestamp when manually creating a session
+    end_timestamp: datetime
+
+
 class TimerRead(BaseModel):
     id: int
     log_entry_id: Optional[int] = None

@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MantineProvider } from "@mantine/core";
+import { DatesProvider } from "@mantine/dates";
 import "@mantine/core/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@mantine/dates/styles.css";
@@ -15,9 +16,11 @@ const root = createRoot(document.getElementById("root")!);
 root.render(
   <React.StrictMode>
     <MantineProvider>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <DatesProvider settings={{ firstDayOfWeek: 0 }}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </DatesProvider>
     </MantineProvider>
   </React.StrictMode>
 );

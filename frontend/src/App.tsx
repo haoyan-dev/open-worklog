@@ -15,6 +15,8 @@ import {
   getTimeSpans,
   adjustTimeSpan,
   updateTimeSpan,
+  createTimeSpan,
+  deleteTimeSpan,
 } from "./api";
 import DateNavigator from "./components/DateNavigator";
 import DailySnapshot from "./components/DailySnapshot";
@@ -35,7 +37,7 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState<LogEntry | null>(null);
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const queryClient = useQueryClient();
-  
+
   // Timer state management
   const { data: activeTimer } = useQuery<Timer | null>({
     queryKey: ["activeTimer"],
@@ -121,9 +123,36 @@ export default function App() {
     mutationFn: ({ timespanId, hours }) => adjustTimeSpan(timespanId, hours),
     onSuccess: () => {
       // Invalidate timespans query to refresh the list
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["timespans"],
-        exact: false 
+        exact: false
+      });
+      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
+    },
+  });
+
+  const createTimeSpanMutation = useMutation<
+    TimeSpan,
+    Error,
+    { logEntryId: number; startTimestamp: string; endTimestamp: string }
+  >({
+    mutationFn: ({ logEntryId, startTimestamp, endTimestamp }) =>
+      createTimeSpan(logEntryId, startTimestamp, endTimestamp),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["timespans"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
+    },
+  });
+
+  const deleteTimeSpanMutation = useMutation<void, Error, { timespanId: number }>({
+    mutationFn: ({ timespanId }) => deleteTimeSpan(timespanId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["timespans"],
+        exact: false,
       });
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
     },
@@ -142,18 +171,18 @@ export default function App() {
         startTimestamp,
         endTimestamp,
       });
-      
+
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["timespans"] });
-      
+
       // Store the query key for use in onSuccess
       const queryKey: [string, string] = ["timespans", logs.map((e) => e.id).join(",")];
       console.log("[updateTimeSpanMutation] onMutate queryKey:", queryKey);
-      
+
       // Snapshot previous value
       const previousTimespans = queryClient.getQueryData<Record<number, TimeSpan[]>>(queryKey);
       console.log("[updateTimeSpanMutation] onMutate previousTimespans:", previousTimespans);
-      
+
       // Optimistically update the cache
       if (previousTimespans) {
         queryClient.setQueryData<Record<number, TimeSpan[]>>(
@@ -169,10 +198,10 @@ export default function App() {
               updated[entryIdNum] = updated[entryIdNum].map((span) =>
                 span.id === timespanId
                   ? {
-                      ...span,
-                      start_timestamp: startTimestamp,
-                      end_timestamp: endTimestamp || span.end_timestamp,
-                    }
+                    ...span,
+                    start_timestamp: startTimestamp,
+                    end_timestamp: endTimestamp || span.end_timestamp,
+                  }
                   : span
               );
             });
@@ -187,7 +216,7 @@ export default function App() {
       } else {
         console.log("[updateTimeSpanMutation] onMutate: no previousTimespans found");
       }
-      
+
       return { previousTimespans, queryKey };
     },
     onError: (err, _variables, context) => {
@@ -204,7 +233,7 @@ export default function App() {
         variables,
         context,
       });
-      
+
       // Helper function to update a query's cache
       const updateQueryCache = (queryKey: [string, string]) => {
         console.log("[updateTimeSpanMutation] onSuccess: updateQueryCache called", { queryKey });
@@ -238,7 +267,7 @@ export default function App() {
             return updated;
           }
         );
-        
+
         // Verify the update was applied
         const updatedData = queryClient.getQueryData<Record<number, TimeSpan[]>>(queryKey);
         console.log("[updateTimeSpanMutation] onSuccess: verified cache after update", {
@@ -246,7 +275,7 @@ export default function App() {
           updatedData,
         });
       };
-      
+
       // First, update the query from onMutate context (the one we optimistically updated)
       if (context) {
         const ctx = context as { queryKey?: [string, string]; previousTimespans?: Record<number, TimeSpan[]> };
@@ -259,18 +288,18 @@ export default function App() {
       } else {
         console.log("[updateTimeSpanMutation] onSuccess: no context found");
       }
-      
+
       // Also update any other matching queries (in case query key changed between onMutate and onSuccess)
       const queryCache = queryClient.getQueryCache();
-      const matchingQueries = queryCache.findAll({ 
+      const matchingQueries = queryCache.findAll({
         queryKey: ["timespans"],
-        exact: false 
+        exact: false
       });
       console.log("[updateTimeSpanMutation] onSuccess: found matching queries", {
         count: matchingQueries.length,
         queryKeys: matchingQueries.map((q) => q.queryKey),
       });
-      
+
       matchingQueries.forEach((query) => {
         const queryData = query.state.data as Record<number, TimeSpan[]> | undefined;
         if (queryData) {
@@ -287,7 +316,7 @@ export default function App() {
           }
         }
       });
-      
+
       // Only invalidate logs query to get updated hours (don't invalidate timespans since we updated it directly)
       console.log("[updateTimeSpanMutation] onSuccess: invalidating logs query", { dateString });
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
@@ -315,7 +344,7 @@ export default function App() {
   });
 
   const timespansMap = timespansQueries.data || {};
-  
+
   // Log timespans query changes
   useEffect(() => {
     console.log("[App] timespansQueries.data changed", {
@@ -411,6 +440,21 @@ export default function App() {
                   });
                   updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
                 }}
+                onTimeSpanCreate={(startTimestamp, endTimestamp) => {
+                  if (!editingEntry) return Promise.resolve();
+                  return createTimeSpanMutation
+                    .mutateAsync({
+                      logEntryId: editingEntry.id,
+                      startTimestamp,
+                      endTimestamp,
+                    })
+                    .then(() => undefined);
+                }}
+                onTimeSpanDelete={(timespanId) => {
+                  return deleteTimeSpanMutation
+                    .mutateAsync({ timespanId })
+                    .then(() => undefined);
+                }}
               />
             ) : (
               // When not editing, show all cards (LogEntryCard components)
@@ -442,6 +486,20 @@ export default function App() {
                         endTimestamp,
                       });
                       updateTimeSpanMutation.mutate({ timespanId, startTimestamp, endTimestamp });
+                    }}
+                    onTimeSpanCreate={(startTimestamp, endTimestamp) => {
+                      return createTimeSpanMutation
+                        .mutateAsync({
+                          logEntryId: entry.id,
+                          startTimestamp,
+                          endTimestamp,
+                        })
+                        .then(() => undefined);
+                    }}
+                    onTimeSpanDelete={(timespanId) => {
+                      return deleteTimeSpanMutation
+                        .mutateAsync({ timespanId })
+                        .then(() => undefined);
                     }}
                   />
                 ))}

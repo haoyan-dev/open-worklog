@@ -22,6 +22,8 @@ export default function LogEntryEditor({
   timespans = [],
   onTimeSpanAdjust,
   onTimeSpanUpdate,
+  onTimeSpanCreate,
+  onTimeSpanDelete,
 }: LogEntryEditorProps) {
   console.log("[LogEntryEditor] render", {
     entryId: entry?.id,
@@ -126,16 +128,19 @@ export default function LogEntryEditor({
             </Box>
           </Group>
 
-          {timespans && timespans.length > 0 && (
+          {entry?.id ? (
             <Box>
               <TimeSpanList
+                logEntryId={entry.id}
                 timespans={timespans}
                 collapsed={false}
                 onAdjust={onTimeSpanAdjust}
                 onUpdate={onTimeSpanUpdate}
+                onCreate={onTimeSpanCreate}
+                onDelete={onTimeSpanDelete}
               />
             </Box>
-          )}
+          ) : null}
 
           <TaskEditor
             label="Task"

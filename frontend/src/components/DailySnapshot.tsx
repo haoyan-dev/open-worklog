@@ -33,6 +33,7 @@ export default function DailySnapshot({
   totalHours,
   categoryHours,
 }: DailySnapshotProps) {
+  const ROW_HEIGHT = 60;
   const total = Object.values(categoryHours).reduce(
     (sum, value) => sum + value,
     0
@@ -46,8 +47,11 @@ export default function DailySnapshot({
 
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Group justify="space-between" gap="md">
-        <Stack gap="xs">
+      <Group justify="space-between" gap="md" align="stretch">
+        <Stack
+          gap={4}
+          style={{ height: ROW_HEIGHT, justifyContent: "center" }}
+        >
           <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
             Total Hours Logged
           </Text>
@@ -55,7 +59,10 @@ export default function DailySnapshot({
             {totalHours.toFixed(1)}h
           </Text>
         </Stack>
-        <Stack gap="xs">
+        <Stack
+          gap={4}
+          style={{ height: ROW_HEIGHT, justifyContent: "center" }}
+        >
           <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
             Status Check
           </Text>
@@ -63,11 +70,14 @@ export default function DailySnapshot({
             {getStatusLabel(totalHours)}
           </Badge>
         </Stack>
-        <Stack gap="xs" style={{ flex: 1, minWidth: 200 }}>
+        <Stack
+          gap={4}
+          style={{ flex: 1, minWidth: 200, height: ROW_HEIGHT, justifyContent: "center" }}
+        >
           <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
             Category Distribution
           </Text>
-          <Progress.Root size="md">
+          <Progress.Root size="md" style={{ width: "100%" }}>
             {segments.map((segment, index) => (
               <Progress.Section
                 key={index}

@@ -13,6 +13,39 @@ interface SimpleTimelineProps {
 
 type DragState = null | "move" | "resize-start" | "resize-end";
 
+function computeViewportRange(params: { startMs: number; endMs: number }): { timeFrom: number; timeTo: number } {
+  const startMs = Math.min(params.startMs, params.endMs);
+  const endMs = Math.max(params.startMs, params.endMs);
+
+  // Default viewport is local work hours (09:00–18:00) on the session date.
+  const baseDate = new Date(startMs);
+  const workStart = new Date(baseDate);
+  workStart.setHours(9, 0, 0, 0);
+  const workEnd = new Date(baseDate);
+  workEnd.setHours(18, 0, 0, 0);
+
+  const workDuration = workEnd.getTime() - workStart.getTime(); // 9 hours
+  const padding = workDuration * 0.2; // 20% padding
+  const baseFrom = workStart.getTime() - padding;
+  const baseTo = workEnd.getTime() + padding;
+
+  const expandedFrom = Math.min(baseFrom, startMs);
+  const expandedTo = Math.max(baseTo, endMs);
+
+  return {
+    timeFrom: Math.max(0, expandedFrom),
+    timeTo: expandedTo,
+  };
+}
+
+function formatDurationLocal(startMs: number, endMs: number): string {
+  const totalMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+}
+
 // Convert timestamp to pixel position
 function timeToPixel(timestamp: number, timeFrom: number, timeTo: number, width: number): number {
   const ratio = (timestamp - timeFrom) / (timeTo - timeFrom);
@@ -182,10 +215,9 @@ export default function SimpleTimeline({
     timeTo = dragStart.timeTo;
   } else {
     // When not dragging, calculate range from current times
-    const duration = endMs - startMs;
-    const padding = duration * 0.2;
-    timeFrom = Math.max(0, startMs - padding);
-    timeTo = endMs + padding;
+    const range = computeViewportRange({ startMs, endMs });
+    timeFrom = range.timeFrom;
+    timeTo = range.timeTo;
   }
 
   const width = containerWidth;
@@ -205,6 +237,8 @@ export default function SimpleTimeline({
   // Generate time labels
   const timeLabels = generateTimeLabels(timeFrom, timeTo, width);
 
+  const hoverText = `${formatDateMedium(new Date(startMs))} ${formatTime24(new Date(startMs))} → ${formatDateMedium(new Date(endMs))} ${formatTime24(new Date(endMs))} (${formatDurationLocal(startMs, endMs)})`;
+
   // Handle mouse down
   const handleMouseDown = useCallback((e: React.MouseEvent, action: DragState) => {
     if (!isEditing || !svgRef.current) return;
@@ -217,10 +251,9 @@ export default function SimpleTimeline({
     const endTimeMs = localEndTime.getTime();
     
     // Calculate and store the visible range at drag start to keep axis fixed
-    const duration = endTimeMs - startTimeMs;
-    const padding = duration * 0.2;
-    const timeFrom = Math.max(0, startTimeMs - padding);
-    const timeTo = endTimeMs + padding;
+    const range = computeViewportRange({ startMs: startTimeMs, endMs: endTimeMs });
+    const timeFrom = range.timeFrom;
+    const timeTo = range.timeTo;
     
     setDragState(action);
     setDragStart({
@@ -451,7 +484,9 @@ export default function SimpleTimeline({
               style={{ cursor: isEditing ? "move" : "pointer" }}
               onMouseDown={handleBarMouseDown}
               onDoubleClick={handleDoubleClick}
-            />
+            >
+              <title>{hoverText}</title>
+            </rect>
 
             {/* Resize handles (only in edit mode) */}
             {isEditing && barWidth > 10 && (

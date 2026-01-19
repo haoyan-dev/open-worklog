@@ -26,6 +26,8 @@ export default function LogEntryCard({
   onStopTimer,
   onTimeSpanAdjust,
   onTimeSpanUpdate,
+  onTimeSpanCreate,
+  onTimeSpanDelete,
   onTaskMarkdownChange,
 }: LogEntryCardProps) {
   const currentTimer = activeTimer ?? null;
@@ -126,15 +128,16 @@ export default function LogEntryCard({
 
         </Box>
 
-        {timespans && timespans.length > 0 && (
-          <Box mt="md">
-            <TimeSpanList
-              timespans={timespans}
-              onAdjust={onTimeSpanAdjust}
-              onUpdate={onTimeSpanUpdate}
-            />
-          </Box>
-        )}
+        <Box mt="md">
+          <TimeSpanList
+            logEntryId={entry.id}
+            timespans={timespans}
+            onAdjust={onTimeSpanAdjust}
+            onUpdate={onTimeSpanUpdate}
+            onCreate={onTimeSpanCreate}
+            onDelete={onTimeSpanDelete}
+          />
+        </Box>
 
         <Group justify="space-between" align="center" style={{ borderTop: "1px solid var(--mantine-color-gray-3)", paddingTop: "var(--mantine-spacing-md)" }}>
           <Group gap="sm">

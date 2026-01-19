@@ -101,6 +101,26 @@ export function getTimeSpans(logId: number): Promise<TimeSpan[]> {
   return request<TimeSpan[]>(`${API_BASE}/logs/${logId}/timespans`);
 }
 
+export function createTimeSpan(
+  logId: number,
+  startTimestamp: string,
+  endTimestamp: string
+): Promise<TimeSpan> {
+  return request<TimeSpan>(`${API_BASE}/logs/${logId}/timespans`, {
+    method: "POST",
+    body: JSON.stringify({
+      start_timestamp: startTimestamp,
+      end_timestamp: endTimestamp,
+    }),
+  });
+}
+
+export function deleteTimeSpan(timespanId: number): Promise<void> {
+  return request<void>(`${API_BASE}/timespans/${timespanId}`, {
+    method: "DELETE",
+  });
+}
+
 export function adjustTimeSpan(
   timespanId: number,
   hours: number

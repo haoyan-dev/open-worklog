@@ -116,6 +116,18 @@ def get_timespans(log_id: int, db: Session = Depends(get_db)):
     return crud.get_timespans_for_entry(db, log_id)
 
 
+@app.post("/api/v1/logs/{log_id}/timespans", response_model=schemas.TimeSpanRead)
+def create_timespan(
+    log_id: int,
+    request: schemas.TimeSpanCreateRequest,
+    db: Session = Depends(get_db),
+):
+    timespan = crud.create_timespan_for_entry(db, log_id, request.start_timestamp, request.end_timestamp)
+    if not timespan:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+    return timespan
+
+
 @app.post("/api/v1/timespans/{timespan_id}/adjust", response_model=schemas.TimeSpanRead)
 def adjust_timespan(
     timespan_id: int,
@@ -138,6 +150,14 @@ def update_timespan(
     if not timespan:
         raise HTTPException(status_code=404, detail="TimeSpan not found")
     return timespan
+
+
+@app.delete("/api/v1/timespans/{timespan_id}")
+def delete_timespan(timespan_id: int, db: Session = Depends(get_db)):
+    deleted = crud.delete_timespan(db, timespan_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="TimeSpan not found")
+    return {"deleted": True}
 
 
 # Project API endpoints

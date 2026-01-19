@@ -11,6 +11,7 @@ interface TimeSpanSessionProps {
   index: number;
   onUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
   onAdjust?: (timespanId: number, hours: number) => void;
+  onDelete?: (timespanId: number) => Promise<void>;
 }
 
 export default function TimeSpanSession({
@@ -18,6 +19,7 @@ export default function TimeSpanSession({
   index,
   onUpdate,
   onAdjust,
+  onDelete,
 }: TimeSpanSessionProps) {
   console.log("[TimeSpanSession] render", {
     timespanId: timespan.id,
@@ -91,6 +93,16 @@ export default function TimeSpanSession({
           index={index}
           isEditing={isEditing}
           onToggleEdit={handleToggleEdit}
+          onTimeRangeChange={(startTimestamp, endTimestamp) => {
+            if (onUpdate) onUpdate(timespan.id, startTimestamp, endTimestamp);
+          }}
+          onDelete={
+            onDelete
+              ? async () => {
+                  await onDelete(timespan.id);
+                }
+              : undefined
+          }
         />
 
         <Box

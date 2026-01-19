@@ -282,6 +282,66 @@ def update_timespan(db: Session, timespan_id: int, update: TimeSpanUpdate):
     return timespan
 
 
+def create_timespan_for_entry(
+    db: Session, log_entry_id: int, start_timestamp: datetime, end_timestamp: datetime
+):
+    """Create a new TimeSpan for a log entry.
+
+    Rounds to nearest 0.25 hour increment and ensures minimum duration of 0.25h.
+    """
+    entry = get_log(db, log_entry_id)
+    if not entry:
+        return None
+
+    new_start = round_to_quarter_hour(start_timestamp)
+    new_end = round_to_quarter_hour(end_timestamp)
+
+    # Validate: end must be after start
+    if new_end <= new_start:
+        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+
+    # Ensure minimum duration of 0.25h
+    duration = (new_end - new_start).total_seconds() / 3600.0
+    if duration < 0.25:
+        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+
+    timespan = TimeSpan(
+        log_entry_id=log_entry_id,
+        start_timestamp=new_start,
+        end_timestamp=new_end,
+    )
+    db.add(timespan)
+    db.commit()
+    db.refresh(timespan)
+
+    # Recalculate total hours for the log entry
+    entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+    db.commit()
+    db.refresh(entry)
+
+    return timespan
+
+
+def delete_timespan(db: Session, timespan_id: int):
+    """Delete a TimeSpan and recalculate log entry hours."""
+    timespan = get_timespan(db, timespan_id)
+    if not timespan:
+        return None
+
+    log_entry_id = timespan.log_entry_id
+    db.delete(timespan)
+    db.commit()
+
+    # Recalculate total hours for the log entry
+    entry = get_log(db, log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
+        db.refresh(entry)
+
+    return True
+
+
 def calculate_timespan_hours(db: Session, log_entry_id: int) -> float:
     """Calculate hours from all TimeSpans for an entry.
     Rounds to nearest 0.25 hour increment."""
