@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Container, Stack, Button, Loader, Alert, Modal, Group, Radio, Text } from "@mantine/core";
+import { Container, Stack, Button, Loader, Alert, Modal, Group, Radio, Text, Textarea } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 
 import {
   createLog,
   deleteLog,
   fetchLogsByDate,
+  fetchDailyReport,
   updateLog,
   getActiveTimeSpan,
   startTimeSpan,
@@ -43,6 +44,9 @@ export default function DayView() {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [createSeed, setCreateSeed] = useState<Partial<LogEntryCreate> | null>(null);
   const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportContent, setReportContent] = useState("");
+  const [reportFilename, setReportFilename] = useState("");
 
   // Duplicate modal state
   const [dupOpen, setDupOpen] = useState(false);
@@ -477,6 +481,26 @@ export default function DayView() {
       <Container size="lg" py="xl">
         <Stack gap="lg">
           {!editingEntry && (
+            <Group justify="flex-end">
+              <Button
+                variant="default"
+                onClick={() => {
+                  fetchDailyReport(dateString)
+                    .then((report) => {
+                      setReportContent(JSON.stringify(report, null, 2));
+                      setReportFilename(`daily-report-${dateString}.json`);
+                      setReportOpen(true);
+                    })
+                    .catch((error) => {
+                      console.warn("[DayView] Failed to generate daily report", error);
+                    });
+                }}
+              >
+                Generate Daily Report
+              </Button>
+            </Group>
+          )}
+          {!editingEntry && (
             <DailySnapshot
               totalHours={summary.totalHours}
               categoryHours={summary.categoryHours}
@@ -666,6 +690,52 @@ export default function DayView() {
               disabled={dupDestinationMode === "pick" && !dupPickedDate}
             >
               Duplicate
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+      <Modal
+        opened={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Daily Report"
+        centered
+        size="lg"
+      >
+        <Stack gap="sm">
+          <Textarea
+            value={reportContent}
+            readOnly
+            autosize
+            minRows={12}
+            maxRows={18}
+          />
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => {
+                if (!reportContent) return;
+                navigator.clipboard.writeText(reportContent).catch((error) => {
+                  console.warn("[DayView] Failed to copy report", error);
+                });
+              }}
+            >
+              Copy
+            </Button>
+            <Button
+              onClick={() => {
+                if (!reportContent) return;
+                const blob = new Blob([reportContent], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = reportFilename || `daily-report-${dateString}.json`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download
             </Button>
           </Group>
         </Stack>

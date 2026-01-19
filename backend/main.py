@@ -1,9 +1,11 @@
 from datetime import date
-
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
 
 import crud
@@ -15,6 +17,11 @@ Base.metadata.create_all(bind=engine)
 ensure_schema(engine)
 
 app = FastAPI(title="Open Worklog API", openapi_url="/api/v1/openapi.json")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +52,43 @@ def get_stats(
     db: Session = Depends(get_db),
 ):
     return crud.get_stats(db, start_date, end_date)
+
+
+@app.get("/api/v1/reports/daily", response_model=schemas.DailyReport)
+def export_daily_report(
+    report_date: date = Query(..., alias="date"),
+    db: Session = Depends(get_db),
+):
+    report = crud.build_daily_report(db, report_date)
+    filename = f"daily-report-{report_date.isoformat()}.json"
+    return JSONResponse(
+        content=jsonable_encoder(report),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/v1/reports/weekly", response_model=schemas.WeeklyReport)
+def export_weekly_report(
+    week_start: date = Query(...),
+    author: Optional[str] = Query(None),
+    summary_qualitative: Optional[str] = Query(None),
+    summary_quantitative: Optional[str] = Query(None),
+    next_week_plan: Optional[list[str]] = Query(None),
+    db: Session = Depends(get_db),
+):
+    report = crud.build_weekly_report(
+        db,
+        week_start,
+        author=author,
+        summary_qualitative=summary_qualitative,
+        summary_quantitative=summary_quantitative,
+        next_week_plan=next_week_plan,
+    )
+    filename = f"weekly-report-{report.week_id}.json"
+    return JSONResponse(
+        content=jsonable_encoder(report),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/api/v1/logs", response_model=schemas.LogEntryRead)

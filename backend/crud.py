@@ -6,14 +6,20 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models import LogEntry, Project, TimeSpan, Timer, TimerStatus
+from models import Category, LogEntry, Project, TimeSpan, Timer, TimerStatus
 from time_merge import SpanLike, plan_connectable_timespan_merges
 from schemas import (
+    DailyReport,
     LogEntryCreate,
     LogEntryUpdate,
     ProjectCreate,
+    ReportEntry,
+    ReportTotals,
     TimeSpanUpdate,
     TimerStartRequest,
+    WeeklyCategories,
+    WeeklyReport,
+    WeeklySummary,
 )
 
 
@@ -277,6 +283,111 @@ def get_stats(db: Session, start_date: date, end_date: date):
         day["category_hours"][row.category.value] = float(row.hours)
 
     return list(stats_map.values())
+
+
+def get_logs_in_range(db: Session, start_date: date, end_date: date):
+    from sqlalchemy.orm import joinedload
+
+    return (
+        db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
+        .filter(LogEntry.date >= start_date, LogEntry.date <= end_date)
+        .order_by(LogEntry.date.asc(), LogEntry.id.asc())
+        .all()
+    )
+
+
+def _build_report_entry(entry: LogEntry) -> ReportEntry:
+    return ReportEntry(
+        date=entry.date,
+        uuid=entry.uuid,
+        previous_task_uuid=entry.previous_task_uuid,
+        category=entry.category,
+        project_id=entry.project_id,
+        project_name=entry.project_name,
+        task=entry.task,
+        hours=entry.hours,
+        additional_hours=entry.additional_hours,
+        status=entry.status,
+        notes=entry.notes,
+    )
+
+
+def _build_report_totals(entries: list[ReportEntry]) -> ReportTotals:
+    by_category: dict[str, float] = {}
+    total_hours = 0.0
+    for entry in entries:
+        total_hours += entry.hours
+        category_key = entry.category.value
+        by_category[category_key] = by_category.get(category_key, 0.0) + entry.hours
+    return ReportTotals(total_hours=total_hours, by_category=by_category)
+
+
+def build_daily_report(db: Session, target_date: date) -> DailyReport:
+    logs = get_logs_by_date(db, target_date)
+    entries = [_build_report_entry(entry) for entry in logs]
+    totals = _build_report_totals(entries)
+    return DailyReport(date=target_date, entries=entries, totals=totals)
+
+
+def _week_bounds(anchor: date) -> tuple[date, date]:
+    # Monday = 0, Sunday = 6
+    offset = anchor.weekday()
+    week_start = anchor - timedelta(days=offset)
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def _weekly_category_key(category: Category) -> str:
+    if category == Category.ROUTINE:
+        return "routine_work"
+    if category == Category.OKR:
+        return "okr"
+    if category == Category.TEAM:
+        return "team_contribution"
+    return "company_contribution"
+
+
+def build_weekly_report(
+    db: Session,
+    week_anchor: date,
+    *,
+    author: Optional[str] = None,
+    summary_qualitative: Optional[str] = None,
+    summary_quantitative: Optional[str] = None,
+    next_week_plan: Optional[list[str]] = None,
+) -> WeeklyReport:
+    week_start, week_end = _week_bounds(week_anchor)
+    logs = get_logs_in_range(db, week_start, week_end)
+    entries = [_build_report_entry(entry) for entry in logs]
+    totals = _build_report_totals(entries)
+
+    buckets: dict[str, list[ReportEntry]] = {
+        "routine_work": [],
+        "okr": [],
+        "team_contribution": [],
+        "company_contribution": [],
+    }
+    for entry in entries:
+        buckets[_weekly_category_key(entry.category)].append(entry)
+
+    summary = None
+    if summary_qualitative or summary_quantitative:
+        summary = WeeklySummary(
+            qualitative=summary_qualitative, quantitative=summary_quantitative
+        )
+
+    week_id = f"{week_start.strftime('%y%m%d')}-{week_end.strftime('%y%m%d')}"
+    return WeeklyReport(
+        week_start=week_start,
+        week_end=week_end,
+        week_id=week_id,
+        author=author or None,
+        summary=summary,
+        next_week_plan=next_week_plan or None,
+        categories=WeeklyCategories(**buckets),
+        totals=totals,
+    )
 
 
 # Project CRUD operations

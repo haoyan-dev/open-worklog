@@ -68,6 +68,54 @@ class DailyStat(BaseModel):
     category_hours: dict[str, float]
 
 
+class ReportTotals(BaseModel):
+    total_hours: float
+    by_category: dict[str, float]
+
+
+class ReportEntry(BaseModel):
+    date: date
+    uuid: str
+    previous_task_uuid: Optional[str] = None
+    category: Category
+    project_id: int
+    project_name: Optional[str] = None
+    task: str
+    hours: float
+    additional_hours: float
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class DailyReport(BaseModel):
+    date: date
+    entries: list[ReportEntry]
+    totals: ReportTotals
+
+
+class WeeklySummary(BaseModel):
+    qualitative: Optional[str] = None
+    quantitative: Optional[str] = None
+
+
+class WeeklyCategories(BaseModel):
+    routine_work: list[ReportEntry]
+    okr: list[ReportEntry]
+    team_contribution: list[ReportEntry]
+    company_contribution: list[ReportEntry]
+
+
+class WeeklyReport(BaseModel):
+    week_start: date
+    week_end: date
+    week_id: str
+    author: Optional[str] = None
+    summary: Optional[WeeklySummary] = None
+    next_week_plan: Optional[list[str]] = None
+    categories: WeeklyCategories
+    totals: ReportTotals
+
+
 class TimeSpanBase(BaseModel):
     log_entry_id: int
     start_timestamp: datetime

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Accordion, Alert, Button, Container, Divider, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import { Accordion, Alert, Button, Container, Divider, Group, Loader, Modal, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 
-import { fetchStats } from "../api";
+import { downloadWeeklyReport, fetchStats } from "../api";
 import DailySnapshot from "../components/DailySnapshot";
 import type { DailyStat } from "../types";
 
@@ -28,6 +28,10 @@ function addDays(value: Date, amount: number): Date {
   return next;
 }
 
+function isDateValue(value: unknown): value is Date {
+  return value instanceof Date;
+}
+
 function buildEmptyStat(date: string): DailyStat {
   return { date, total_hours: 0, category_hours: {} };
 }
@@ -40,8 +44,10 @@ function getCalendarDayProps(day: Date | string) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'date type check', data: { isDate }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
   // #endregion
-  let resolved = day;
-  if (!isDate && typeof day === "string") {
+  let resolved: Date | null = null;
+  if (isDate) {
+    resolved = day;
+  } else if (typeof day === "string") {
     const [y, m, d] = day.split("-").map((value) => Number(value));
     if (y && m && d) {
       resolved = new Date(y, m - 1, d);
@@ -57,7 +63,8 @@ function getCalendarDayProps(day: Date | string) {
     // #endregion
     return {};
   }
-  const dow = resolved.getDay(); // 0 = Sunday, 6 = Saturday
+  const resolvedDate = resolved as Date;
+  const dow = resolvedDate.getDay(); // 0 = Sunday, 6 = Saturday
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'computed dow', data: { dow }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
   // #endregion
@@ -72,6 +79,11 @@ function getCalendarDayProps(day: Date | string) {
 
 export default function WeekView() {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportAuthor, setExportAuthor] = useState("");
+  const [exportSummaryQualitative, setExportSummaryQualitative] = useState("");
+  const [exportSummaryQuantitative, setExportSummaryQuantitative] = useState("");
+  const [exportNextWeekPlan, setExportNextWeekPlan] = useState("");
 
   const weekStart = useMemo(() => getWeekStart(anchorDate), [anchorDate]);
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
@@ -166,13 +178,17 @@ export default function WeekView() {
               Next Week
             </Button>
           </Group>
+          <Button variant="default" onClick={() => setExportOpen(true)}>
+            Download Weekly Report
+          </Button>
           <DateInput
             value={anchorDate}
             onChange={(value) => {
+              const isDate = isDateValue(value);
               // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:DateInput.onChange', message: 'date input change', data: { type: typeof value, isDate: value instanceof Date, value: String(value) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H5' }) }).catch(() => { });
+              fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:DateInput.onChange', message: 'date input change', data: { type: typeof value, isDate, value: String(value) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H5' }) }).catch(() => { });
               // #endregion
-              if (value) setAnchorDate(value as Date);
+              if (isDate) setAnchorDate(value);
             }}
             valueFormat="YYYY-MM-DD"
             label="Week of"
@@ -237,6 +253,72 @@ export default function WeekView() {
           </Stack>
         ) : null}
       </Stack>
+      <Modal
+        opened={exportOpen}
+        onClose={() => setExportOpen(false)}
+        title="Weekly Report Details"
+        centered
+      >
+        <Stack gap="sm">
+          <TextInput
+            label="Author"
+            placeholder="Your name"
+            value={exportAuthor}
+            onChange={(event) => setExportAuthor(event.currentTarget.value)}
+          />
+          <Textarea
+            label="Summary (qualitative)"
+            placeholder="Highlights and insights"
+            minRows={2}
+            value={exportSummaryQualitative}
+            onChange={(event) => setExportSummaryQualitative(event.currentTarget.value)}
+          />
+          <Textarea
+            label="Summary (quantitative)"
+            placeholder="Metrics and totals"
+            minRows={2}
+            value={exportSummaryQuantitative}
+            onChange={(event) => setExportSummaryQuantitative(event.currentTarget.value)}
+          />
+          <Textarea
+            label="Next week plan"
+            placeholder="One item per line"
+            minRows={3}
+            value={exportNextWeekPlan}
+            onChange={(event) => setExportNextWeekPlan(event.currentTarget.value)}
+          />
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => {
+                setExportOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const nextWeekItems = exportNextWeekPlan
+                  .split("\n")
+                  .map((item) => item.trim())
+                  .filter(Boolean);
+                downloadWeeklyReport({
+                  weekStart: startDateString,
+                  author: exportAuthor || undefined,
+                  summaryQualitative: exportSummaryQualitative || undefined,
+                  summaryQuantitative: exportSummaryQuantitative || undefined,
+                  nextWeekPlan: nextWeekItems.length > 0 ? nextWeekItems : undefined,
+                }).catch((error) => {
+                  console.warn("[WeekView] Failed to download weekly report", error);
+                });
+                setExportOpen(false);
+              }}
+            >
+              Download
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

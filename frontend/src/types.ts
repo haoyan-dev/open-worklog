@@ -32,6 +32,31 @@ export interface DailyStat {
   category_hours: Record<string, number>;
 }
 
+export interface ReportTotals {
+  total_hours: number;
+  by_category: Record<string, number>;
+}
+
+export interface ReportEntry {
+  date: string; // ISO date string (YYYY-MM-DD)
+  uuid: string;
+  previous_task_uuid?: string;
+  category: Category;
+  project_id: number;
+  project_name?: string;
+  task: string;
+  hours: number;
+  additional_hours: number;
+  status?: string;
+  notes?: string;
+}
+
+export interface DailyReport {
+  date: string; // ISO date string (YYYY-MM-DD)
+  entries: ReportEntry[];
+  totals: ReportTotals;
+}
+
 export interface TimeSpan {
   id: number;
   log_entry_id: number;
