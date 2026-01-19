@@ -1,26 +1,25 @@
 import { useEffect, useState, useRef } from "react";
-import type { Timer, TimeSpan } from "../types";
+import type { TimeSpan } from "../types";
 import { parseUTCDate } from "../utils/timeUtils";
-import { getTimeSpans } from "../api";
 
 interface UseTimerResult {
   elapsedHours: number;
   elapsedSeconds: number;
   formattedTime: string;
   isRunning: boolean;
-  isPaused: boolean;
   accumulatedHours: number;
 }
 
 export function useTimer(
-  timer: Timer | null | undefined,
+  activeTimeSpan: TimeSpan | null | undefined,
   timespans: TimeSpan[] = []
 ): UseTimerResult {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!timer) {
+    const isRunning = Boolean(activeTimeSpan && !activeTimeSpan.end_timestamp);
+    if (!activeTimeSpan || !isRunning) {
       setElapsedSeconds(0);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -30,30 +29,17 @@ export function useTimer(
     }
 
     const calculateElapsed = () => {
-      if (timer.status === "running") {
-        // Parse timestamp as UTC to avoid timezone shifts
-        const startTime = parseUTCDate(timer.started_at).getTime();
-        const now = Date.now();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        setElapsedSeconds(elapsed);
-      } else {
-        // For paused timer, don't update elapsed time
-        setElapsedSeconds(0);
-      }
+      // Parse timestamp as UTC to avoid timezone shifts
+      const startTime = parseUTCDate(activeTimeSpan.start_timestamp).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      setElapsedSeconds(elapsed);
     };
 
     // Calculate initial elapsed time
     calculateElapsed();
 
-    // Update every second if running
-    if (timer.status === "running") {
-      intervalRef.current = window.setInterval(calculateElapsed, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
+    intervalRef.current = window.setInterval(calculateElapsed, 1000);
 
     return () => {
       if (intervalRef.current) {
@@ -61,7 +47,7 @@ export function useTimer(
         intervalRef.current = null;
       }
     };
-  }, [timer]);
+  }, [activeTimeSpan?.id, activeTimeSpan?.start_timestamp, activeTimeSpan?.end_timestamp]);
 
   // Calculate accumulated hours from completed TimeSpans
   // Parse timestamps as UTC to avoid timezone shifts
@@ -77,7 +63,7 @@ export function useTimer(
 
   // Current session hours (if timer is running)
   const currentSessionHours =
-    timer && timer.status === "running"
+    activeTimeSpan && !activeTimeSpan.end_timestamp
       ? elapsedSeconds / 3600
       : 0;
 
@@ -101,8 +87,7 @@ export function useTimer(
     elapsedHours,
     elapsedSeconds,
     formattedTime: formatTime(elapsedHours),
-    isRunning: timer?.status === "running",
-    isPaused: timer?.status === "paused",
+    isRunning: Boolean(activeTimeSpan && !activeTimeSpan.end_timestamp),
     accumulatedHours,
   };
 }

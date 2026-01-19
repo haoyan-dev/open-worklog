@@ -4,8 +4,6 @@ export type Category =
   | "Team Contribution"
   | "Company Contribution";
 
-export type TimerStatus = "running" | "paused";
-
 export interface Project {
   id: number;
   name: string;
@@ -32,17 +30,6 @@ export interface TimeSpan {
   start_timestamp: string; // ISO datetime string
   end_timestamp?: string; // ISO datetime string
   created_at: string; // ISO datetime string
-}
-
-export interface Timer {
-  id: number;
-  log_entry_id?: number;
-  started_at: string; // ISO datetime string
-  status: TimerStatus;
-  date?: string; // ISO date string
-  category?: Category;
-  project_id?: number;
-  task?: string;
 }
 
 export interface LogEntryCreate {
@@ -72,12 +59,11 @@ export interface LogEntryCardProps {
   entry: LogEntry;
   onEdit: (entry: LogEntry) => void;
   onDelete: (id: number) => void;
-  activeTimer?: Timer | null;
+  activeTimeSpan?: TimeSpan | null;
   timespans?: TimeSpan[];
-  onStartTimer?: (entryId: number) => void;
-  onPauseTimer?: (timerId: number) => void;
-  onResumeTimer?: (timerId: number) => void;
-  onStopTimer?: (timerId: number) => void;
+  onStartSession?: (entryId: number) => void;
+  onPauseSession?: (timespanId: number) => void;
+  onStopSession?: (timespanId: number) => void;
   onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
   onTimeSpanUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
   onTimeSpanCreate?: (startTimestamp: string, endTimestamp: string) => Promise<void>;
@@ -97,7 +83,7 @@ export interface LogEntryEditorProps {
   onTimeSpanDelete?: (timespanId: number) => Promise<void>;
 }
 
-export interface TimerStartRequest {
+export interface TimeSpanStartRequest {
   log_entry_id?: number;
   date?: string;
   category?: Category;

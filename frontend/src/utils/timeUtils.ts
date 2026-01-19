@@ -155,10 +155,10 @@ export function calculateHoursFromTimeSpans(timespans: Array<{ start_timestamp: 
   if (timespans.length === 0) return 0;
   
   const totalHours = timespans.reduce((total, span) => {
+    // Settled-hours policy: open sessions (no end_timestamp) don't count here.
+    if (!span.end_timestamp) return total;
     const start = parseUTCDate(span.start_timestamp).getTime();
-    const end = span.end_timestamp
-      ? parseUTCDate(span.end_timestamp).getTime()
-      : Date.now();
+    const end = parseUTCDate(span.end_timestamp).getTime();
     const duration = (end - start) / (1000 * 60 * 60); // Convert to hours
     return total + duration;
   }, 0);

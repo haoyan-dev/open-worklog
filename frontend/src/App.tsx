@@ -7,11 +7,9 @@ import {
   deleteLog,
   fetchLogsByDate,
   updateLog,
-  getActiveTimer,
-  startTimer,
-  pauseTimer,
-  resumeTimer,
-  stopTimer,
+  getActiveTimeSpan,
+  startTimeSpan,
+  pauseTimeSpan,
   getTimeSpans,
   adjustTimeSpan,
   updateTimeSpan,
@@ -22,7 +20,7 @@ import DateNavigator from "./components/DateNavigator";
 import DailySnapshot from "./components/DailySnapshot";
 import LogEntryCard from "./components/LogEntryCard";
 import LogEntryEditor from "./components/LogEntryEditor";
-import type { LogEntry, LogEntryCreate, Timer, TimeSpan } from "./types";
+import type { LogEntry, LogEntryCreate, TimeSpan } from "./types";
 
 function formatDate(value: Date): string {
   // Use local date to avoid UTC timezone issues
@@ -39,9 +37,9 @@ export default function App() {
   const queryClient = useQueryClient();
 
   // Timer state management
-  const { data: activeTimer } = useQuery<Timer | null>({
-    queryKey: ["activeTimer"],
-    queryFn: getActiveTimer,
+  const { data: activeTimeSpan } = useQuery<TimeSpan | null>({
+    queryKey: ["activeTimeSpan"],
+    queryFn: getActiveTimeSpan,
     refetchInterval: 30000, // Poll every 30 seconds
   });
 
@@ -83,34 +81,20 @@ export default function App() {
     },
   });
 
-  // Timer mutations
-  const startTimerMutation = useMutation<Timer, Error, { entryId: number }>({
-    mutationFn: ({ entryId }) => startTimer({ log_entry_id: entryId }),
+  // Running session (open TimeSpan) mutations
+  const startSessionMutation = useMutation<TimeSpan, Error, { entryId: number }>({
+    mutationFn: ({ entryId }) => startTimeSpan({ log_entry_id: entryId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activeTimer"] });
-      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
+      queryClient.invalidateQueries({ queryKey: ["activeTimeSpan"] });
+      queryClient.invalidateQueries({ queryKey: ["timespans"], exact: false });
     },
   });
 
-  const pauseTimerMutation = useMutation<Timer, Error, number>({
-    mutationFn: pauseTimer,
+  const pauseSessionMutation = useMutation<TimeSpan, Error, number>({
+    mutationFn: pauseTimeSpan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activeTimer"] });
-      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
-    },
-  });
-
-  const resumeTimerMutation = useMutation<Timer, Error, number>({
-    mutationFn: resumeTimer,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activeTimer"] });
-    },
-  });
-
-  const stopTimerMutation = useMutation<LogEntry, Error, number>({
-    mutationFn: stopTimer,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activeTimer"] });
+      queryClient.invalidateQueries({ queryKey: ["activeTimeSpan"] });
+      queryClient.invalidateQueries({ queryKey: ["timespans"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
     },
   });
@@ -465,17 +449,14 @@ export default function App() {
                     entry={entry}
                     onEdit={(log) => setEditingEntry(log)}
                     onDelete={(id) => deleteMutation.mutate(id)}
-                    activeTimer={activeTimer}
+                    activeTimeSpan={activeTimeSpan}
                     timespans={timespansMap[entry.id] || []}
                     onTaskMarkdownChange={handleTaskMarkdownChange}
-                    onStartTimer={(entryId) =>
-                      startTimerMutation.mutate({ entryId })
+                    onStartSession={(entryId) =>
+                      startSessionMutation.mutate({ entryId })
                     }
-                    onPauseTimer={(timerId) => pauseTimerMutation.mutate(timerId)}
-                    onResumeTimer={(timerId) =>
-                      resumeTimerMutation.mutate(timerId)
-                    }
-                    onStopTimer={(timerId) => stopTimerMutation.mutate(timerId)}
+                    onPauseSession={(timespanId) => pauseSessionMutation.mutate(timespanId)}
+                    onStopSession={(timespanId) => pauseSessionMutation.mutate(timespanId)}
                     onTimeSpanAdjust={(timespanId, hours) =>
                       adjustTimeSpanMutation.mutate({ timespanId, hours })
                     }

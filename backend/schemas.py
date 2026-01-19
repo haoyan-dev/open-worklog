@@ -137,6 +137,21 @@ class TimeSpanCreateRequest(TimeSpanUpdate):
     end_timestamp: datetime
 
 
+class TimeSpanStartRequest(BaseModel):
+    """Start (or resume) a running session as an open TimeSpan.
+
+    Provide either:
+    - log_entry_id: start/resume session for existing log entry
+    - or (date, category, project_id, task): create a new LogEntry then start
+    """
+
+    log_entry_id: Optional[int] = None
+    date: Optional[date] = None
+    category: Optional[Category] = None
+    project_id: Optional[int] = None
+    task: Optional[str] = None
+
+
 class TimerRead(BaseModel):
     id: int
     log_entry_id: Optional[int] = None

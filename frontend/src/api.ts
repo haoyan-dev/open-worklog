@@ -2,8 +2,7 @@ import type {
   LogEntry,
   LogEntryCreate,
   Project,
-  Timer,
-  TimerStartRequest,
+  TimeSpanStartRequest,
   TimeSpan,
 } from "./types";
 
@@ -58,41 +57,21 @@ export function deleteLog(id: number): Promise<void> {
   });
 }
 
-// Timer API functions
-export function startTimer(
-  payload: TimerStartRequest
-): Promise<Timer> {
-  return request<Timer>(`${API_BASE}/timers/start`, {
+// Running (open) TimeSpan lifecycle API
+export function startTimeSpan(payload: TimeSpanStartRequest): Promise<TimeSpan> {
+  return request<TimeSpan>(`${API_BASE}/timespans/start`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function getActiveTimer(): Promise<Timer | null> {
-  return request<Timer | null>(`${API_BASE}/timers/active`);
+export function getActiveTimeSpan(): Promise<TimeSpan | null> {
+  return request<TimeSpan | null>(`${API_BASE}/timespans/active`);
 }
 
-export function pauseTimer(timerId: number): Promise<Timer> {
-  return request<Timer>(`${API_BASE}/timers/${timerId}/pause`, {
+export function pauseTimeSpan(timespanId: number): Promise<TimeSpan> {
+  return request<TimeSpan>(`${API_BASE}/timespans/${timespanId}/pause`, {
     method: "POST",
-  });
-}
-
-export function resumeTimer(timerId: number): Promise<Timer> {
-  return request<Timer>(`${API_BASE}/timers/${timerId}/resume`, {
-    method: "POST",
-  });
-}
-
-export function stopTimer(timerId: number): Promise<LogEntry> {
-  return request<LogEntry>(`${API_BASE}/timers/${timerId}/stop`, {
-    method: "POST",
-  });
-}
-
-export function cancelTimer(timerId: number): Promise<void> {
-  return request<void>(`${API_BASE}/timers/${timerId}`, {
-    method: "DELETE",
   });
 }
 

@@ -1,55 +1,49 @@
 import React from "react";
 import { Group, Button, Text, Badge } from "@mantine/core";
-import type { Timer } from "../types";
 import { useTimer } from "../hooks/useTimer";
 import type { TimeSpan } from "../types";
 
 interface TimerControlsProps {
-  timer: Timer | null;
+  activeTimeSpan: TimeSpan | null;
   entryId: number;
   timespans?: TimeSpan[];
   disabled?: boolean;
   onStart: () => void;
   onPause: () => void;
-  onResume: () => void;
   onStop: () => void;
 }
 
 export default function TimerControls({
-  timer,
+  activeTimeSpan,
   entryId,
   timespans = [],
   disabled = false,
   onStart,
   onPause,
-  onResume,
   onStop,
 }: TimerControlsProps) {
-  const isActiveForThisEntry = timer?.log_entry_id === entryId;
-  const { formattedTime, isRunning, isPaused } = useTimer(
-    isActiveForThisEntry ? timer : null,
+  const isActiveForThisEntry = activeTimeSpan?.log_entry_id === entryId;
+  const { formattedTime, isRunning } = useTimer(
+    isActiveForThisEntry ? activeTimeSpan : null,
     timespans
   );
 
-  const hasActiveTimer = timer !== null;
-  const canStart = !hasActiveTimer || isActiveForThisEntry;
   const canPause = isActiveForThisEntry && isRunning;
-  const canResume = isActiveForThisEntry && isPaused;
-  const canStop = isActiveForThisEntry && (isRunning || isPaused);
+  const canStop = isActiveForThisEntry && isRunning;
 
   return (
     <Group gap="sm" align="center">
       {isActiveForThisEntry && (
         <Group gap="xs" align="center">
           <Badge
-            color={isRunning ? "green" : "orange"}
+            color="green"
             variant="dot"
             size="lg"
             style={{
               animation: isRunning ? "pulse 2s ease-in-out infinite" : undefined,
             }}
           >
-            {isRunning ? "Running" : "Paused"}
+            Running
           </Badge>
           <Text fw={600} size="sm">
             {formattedTime}
@@ -63,7 +57,7 @@ export default function TimerControls({
             color="green"
             variant="light"
             onClick={onStart}
-            disabled={disabled || !canStart}
+            disabled={disabled}
           >
             Start
           </Button>
@@ -76,16 +70,6 @@ export default function TimerControls({
             onClick={onPause}
           >
             Pause
-          </Button>
-        )}
-        {canResume && (
-          <Button
-            size="xs"
-            color="blue"
-            variant="light"
-            onClick={onResume}
-          >
-            Resume
           </Button>
         )}
         {canStop && (

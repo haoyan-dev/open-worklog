@@ -210,6 +210,84 @@ def get_timespan(db: Session, timespan_id: int):
     return db.query(TimeSpan).filter(TimeSpan.id == timespan_id).first()
 
 
+def get_active_timespan(db: Session) -> TimeSpan | None:
+    """Return the currently running (open) TimeSpan, if any.
+
+    Running/open is defined as end_timestamp == NULL.
+
+    Note: we enforce at most one open TimeSpan via start_timespan_for_entry(),
+    but we still pick the most recent one defensively.
+    """
+    return (
+        db.query(TimeSpan)
+        .filter(TimeSpan.end_timestamp.is_(None))
+        .order_by(TimeSpan.created_at.desc())
+        .first()
+    )
+
+
+def end_timespan(db: Session, timespan_id: int) -> TimeSpan | None:
+    """End an open TimeSpan (set end_timestamp) and recalc LogEntry.hours.
+
+    - Rounds to nearest 15 minutes.
+    - Ensures minimum duration of 0.25h.
+    """
+    timespan = get_timespan(db, timespan_id)
+    if not timespan:
+        return None
+
+    if timespan.end_timestamp:
+        # Already ended; no-op.
+        return timespan
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_ts = round_to_quarter_hour(timespan.start_timestamp)
+    end_ts = round_to_quarter_hour(now)
+    if end_ts <= start_ts:
+        end_ts = start_ts + timedelta(minutes=QUARTER_HOUR_MINUTES)
+
+    timespan.start_timestamp = start_ts
+    timespan.end_timestamp = end_ts
+    db.commit()
+    db.refresh(timespan)
+
+    entry = get_log(db, timespan.log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
+        db.refresh(entry)
+
+    return timespan
+
+
+def start_timespan_for_entry(db: Session, log_entry_id: int) -> TimeSpan | None:
+    """Start a new running TimeSpan (end_timestamp=NULL) for the given LogEntry.
+
+    Active policy: if another TimeSpan is currently running (open), we auto-end it
+    (auto-pause) before creating the new running TimeSpan.
+    """
+    entry = get_log(db, log_entry_id)
+    if not entry:
+        return None
+
+    active = get_active_timespan(db)
+    if active:
+        # Auto-pause the existing active session (even if it belongs to the same entry).
+        end_timespan(db, active.id)
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_ts = round_to_quarter_hour(now)
+    timespan = TimeSpan(
+        log_entry_id=log_entry_id,
+        start_timestamp=start_ts,
+        end_timestamp=None,
+    )
+    db.add(timespan)
+    db.commit()
+    db.refresh(timespan)
+    return timespan
+
+
 def adjust_timespan(db: Session, timespan_id: int, hours: float):
     """Adjust TimeSpan end_timestamp by adding/subtracting hours.
     Rounds to nearest 0.25 hour increment."""
@@ -347,12 +425,13 @@ def calculate_timespan_hours(db: Session, log_entry_id: int) -> float:
     Rounds to nearest 0.25 hour increment."""
     timespans = get_timespans_for_entry(db, log_entry_id)
     total_hours = 0.0
-    # Use timezone-aware UTC datetime, then convert to naive for comparison
-    # (database stores naive UTC datetimes)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     for span in timespans:
-        end_time = span.end_timestamp if span.end_timestamp else now
+        # Settled-hours policy: open sessions (end_timestamp is NULL) don't count
+        # toward LogEntry.hours until they are ended.
+        if not span.end_timestamp:
+            continue
+        end_time = span.end_timestamp
         duration = (end_time - span.start_timestamp).total_seconds() / 3600.0
         total_hours += duration
 

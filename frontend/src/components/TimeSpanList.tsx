@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Collapse, Stack, Group, Text, Box, Button, Divider } from "@mantine/core";
+import { Collapse, Stack, Group, Text, Box, ActionIcon, Divider, Button } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { DateInput, TimePicker } from "@mantine/dates";
+import { IconPlus } from "@tabler/icons-react";
 import type { TimeSpan } from "../types";
 import { parseUTCDate } from "../utils/timeUtils";
 import TimeSpanSession from "./TimeSpanSession";
@@ -96,10 +97,10 @@ export default function TimeSpanList({
 
   // Parse timestamps as UTC to avoid timezone shifts
   const totalHours = timespans.reduce((total, span) => {
+    // Settled-hours policy: ignore open sessions in totals.
+    if (!span.end_timestamp) return total;
     const start = parseUTCDate(span.start_timestamp).getTime();
-    const end = span.end_timestamp
-      ? parseUTCDate(span.end_timestamp).getTime()
-      : Date.now();
+    const end = parseUTCDate(span.end_timestamp).getTime();
     return total + (end - start) / (1000 * 60 * 60);
   }, 0);
 
@@ -141,17 +142,19 @@ export default function TimeSpanList({
           <Text size="xs" c="dimmed">{opened ? "▲" : "▼"}</Text>
         </Group>
         {canCreate && (
-          <Button
-            size="xs"
+          <ActionIcon
             variant="light"
+            color="blue"
             onClick={(e) => {
               e.stopPropagation();
               if (!opened) toggle();
               setIsAdding(true);
             }}
+            title="Add session"
+            aria-label="Add session"
           >
-            Add
-          </Button>
+            <IconPlus size={16} />
+          </ActionIcon>
         )}
       </Group>
       <Collapse in={opened}>
@@ -215,7 +218,7 @@ export default function TimeSpanList({
                 <Button
                   size="xs"
                   variant="default"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setIsAdding(false);
                   }}
@@ -226,7 +229,7 @@ export default function TimeSpanList({
                   size="xs"
                   loading={isSaving}
                   disabled={!isDraftValid || isSaving}
-                  onClick={async (e) => {
+                  onClick={async (e: React.MouseEvent) => {
                     e.stopPropagation();
                     if (!onCreate || !startDate || !endDate) return;
                     const nextStart = withLocalDateAndTime(startDate, startValue);

@@ -18,19 +18,18 @@ export default function LogEntryCard({
   entry,
   onEdit,
   onDelete,
-  activeTimer,
+  activeTimeSpan,
   timespans = [],
-  onStartTimer,
-  onPauseTimer,
-  onResumeTimer,
-  onStopTimer,
+  onStartSession,
+  onPauseSession,
+  onStopSession,
   onTimeSpanAdjust,
   onTimeSpanUpdate,
   onTimeSpanCreate,
   onTimeSpanDelete,
   onTaskMarkdownChange,
 }: LogEntryCardProps) {
-  const currentTimer = activeTimer ?? null;
+  const currentActive = activeTimeSpan ?? null;
   // Calculate hours from timespans when available, otherwise use entry.hours
   // This ensures the displayed hours match what's shown in TimeSpanList
   const displayHours = useMemo(() => {
@@ -82,8 +81,8 @@ export default function LogEntryCard({
       radius="md"
       withBorder
       style={{
-        borderColor: currentTimer?.log_entry_id === entry.id ? "var(--mantine-color-green-6)" : undefined,
-        borderWidth: currentTimer?.log_entry_id === entry.id ? 2 : undefined,
+        borderColor: currentActive?.log_entry_id === entry.id ? "var(--mantine-color-green-6)" : undefined,
+        borderWidth: currentActive?.log_entry_id === entry.id ? 2 : undefined,
       }}
     >
       <Stack gap="md">
@@ -144,23 +143,20 @@ export default function LogEntryCard({
             <Badge color={statusColor} variant="light">
               {status}
             </Badge>
-            {onStartTimer && (
+            {onStartSession && (
               <TimerControls
-                timer={currentTimer}
+                activeTimeSpan={currentActive}
                 entryId={entry.id}
                 timespans={timespans}
-                disabled={currentTimer !== null && currentTimer.log_entry_id !== entry.id}
+                disabled={false}
                 onStart={() => {
-                  if (onStartTimer) onStartTimer(entry.id);
+                  onStartSession(entry.id);
                 }}
                 onPause={() => {
-                  if (currentTimer && onPauseTimer) onPauseTimer(currentTimer.id);
-                }}
-                onResume={() => {
-                  if (currentTimer && onResumeTimer) onResumeTimer(currentTimer.id);
+                  if (currentActive && onPauseSession) onPauseSession(currentActive.id);
                 }}
                 onStop={() => {
-                  if (currentTimer && onStopTimer) onStopTimer(currentTimer.id);
+                  if (currentActive && onStopSession) onStopSession(currentActive.id);
                 }}
               />
             )}

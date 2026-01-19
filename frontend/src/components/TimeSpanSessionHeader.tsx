@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Group, Stack, Text, Button, Divider, ActionIcon } from "@mantine/core";
-import { IconTrash } from "@tabler/icons-react";
+import { IconPencil, IconTrash } from "@tabler/icons-react";
 import { DateInput, TimePicker } from "@mantine/dates";
 import { formatDateTime, formatDuration, parseUTCDate } from "../utils/timeUtils";
 import type { TimeSpan } from "../types";
@@ -195,16 +195,18 @@ export default function TimeSpanSessionHeader({
 
         {!isEditing && (
           <Group gap="xs" justify="flex-end" wrap="nowrap">
-            <Button
-              size="xs"
+            <ActionIcon
               variant="subtle"
+              color="blue"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleEdit();
               }}
+              title="Edit session"
+              aria-label="Edit session"
             >
-              Edit
-            </Button>
+              <IconPencil size={16} />
+            </ActionIcon>
             {onDelete && (
               <ActionIcon
                 variant="subtle"
