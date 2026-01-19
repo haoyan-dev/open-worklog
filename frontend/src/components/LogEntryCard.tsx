@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
-import ReactMarkdown from "react-markdown";
+import { useEffect, useMemo, useState } from "react";
 import { Card, Group, Stack, Text, Badge, ActionIcon, Box } from "@mantine/core";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import type { LogEntryCardProps } from "../types";
 import TimerControls from "./TimerControls";
 import TimeSpanList from "./TimeSpanList";
+import MarkdownViewer from "./MarkdownViewer";
 import { calculateHoursFromTimeSpans, roundToQuarterHour } from "../utils/timeUtils";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -26,7 +26,9 @@ export default function LogEntryCard({
   onStopTimer,
   onTimeSpanAdjust,
   onTimeSpanUpdate,
+  onTaskMarkdownChange,
 }: LogEntryCardProps) {
+  const currentTimer = activeTimer ?? null;
   // Calculate hours from timespans when available, otherwise use entry.hours
   // This ensures the displayed hours match what's shown in TimeSpanList
   const displayHours = useMemo(() => {
@@ -51,6 +53,26 @@ export default function LogEntryCard({
 
   const statusColor = statusColorMap[status.toLowerCase().replace(/\s+/g, "-")] || "gray";
 
+  const [taskMarkdown, setTaskMarkdown] = useState<string>(entry.task);
+  const [taskDirty, setTaskDirty] = useState<boolean>(false);
+
+  // When switching to a different entry, always sync from server value.
+  useEffect(() => {
+    setTaskMarkdown(entry.task);
+    setTaskDirty(false);
+  }, [entry.id]);
+
+  // If not dirty, keep in sync with server; if dirty, clear dirty once server matches our local state.
+  useEffect(() => {
+    if (!taskDirty) {
+      setTaskMarkdown(entry.task);
+      return;
+    }
+    if (entry.task === taskMarkdown) {
+      setTaskDirty(false);
+    }
+  }, [entry.task, taskDirty, taskMarkdown]);
+
   return (
     <Card
       shadow="sm"
@@ -58,8 +80,8 @@ export default function LogEntryCard({
       radius="md"
       withBorder
       style={{
-        borderColor: activeTimer?.log_entry_id === entry.id ? "var(--mantine-color-green-6)" : undefined,
-        borderWidth: activeTimer?.log_entry_id === entry.id ? 2 : undefined,
+        borderColor: currentTimer?.log_entry_id === entry.id ? "var(--mantine-color-green-6)" : undefined,
+        borderWidth: currentTimer?.log_entry_id === entry.id ? 2 : undefined,
       }}
     >
       <Stack gap="md">
@@ -77,27 +99,42 @@ export default function LogEntryCard({
           </Text>
         </Group>
 
-        <Box>
-          <Box className="log-task">
-            <ReactMarkdown>{entry.task}</ReactMarkdown>
+        <Box p="sm" style={{ backgroundColor: "var(--mantine-color-gray-0)", borderRadius: "var(--mantine-radius-sm)", border: "1px solid var(--mantine-color-gray-3)" }}>
+          <Text size="xs" c="dimmed" fw={500} tt="uppercase" mb={6}>
+            Tasks
+          </Text>
+
+          <Box className="log-task" mb="md" pt="md" style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
+            <MarkdownViewer
+              value={taskMarkdown}
+              enableTaskToggle
+              onChange={(nextMarkdown) => {
+                setTaskDirty(true);
+                setTaskMarkdown(nextMarkdown);
+                onTaskMarkdownChange?.(entry.id, nextMarkdown);
+              }}
+            />
           </Box>
+
           {entry.notes && (
             <Box mt="md" pt="md" style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
               <Text size="sm" c="dimmed">
-                <ReactMarkdown>{entry.notes}</ReactMarkdown>
+                <MarkdownViewer value={entry.notes} />
               </Text>
             </Box>
           )}
-          {timespans && timespans.length > 0 && (
-            <Box mt="md">
-              <TimeSpanList 
-                timespans={timespans}
-                onAdjust={onTimeSpanAdjust}
-                onUpdate={onTimeSpanUpdate}
-              />
-            </Box>
-          )}
+
         </Box>
+
+        {timespans && timespans.length > 0 && (
+          <Box mt="md">
+            <TimeSpanList
+              timespans={timespans}
+              onAdjust={onTimeSpanAdjust}
+              onUpdate={onTimeSpanUpdate}
+            />
+          </Box>
+        )}
 
         <Group justify="space-between" align="center" style={{ borderTop: "1px solid var(--mantine-color-gray-3)", paddingTop: "var(--mantine-spacing-md)" }}>
           <Group gap="sm">
@@ -106,21 +143,21 @@ export default function LogEntryCard({
             </Badge>
             {onStartTimer && (
               <TimerControls
-                timer={activeTimer}
+                timer={currentTimer}
                 entryId={entry.id}
                 timespans={timespans}
-                disabled={activeTimer !== null && activeTimer.log_entry_id !== entry.id}
+                disabled={currentTimer !== null && currentTimer.log_entry_id !== entry.id}
                 onStart={() => {
                   if (onStartTimer) onStartTimer(entry.id);
                 }}
                 onPause={() => {
-                  if (activeTimer && onPauseTimer) onPauseTimer(activeTimer.id);
+                  if (currentTimer && onPauseTimer) onPauseTimer(currentTimer.id);
                 }}
                 onResume={() => {
-                  if (activeTimer && onResumeTimer) onResumeTimer(activeTimer.id);
+                  if (currentTimer && onResumeTimer) onResumeTimer(currentTimer.id);
                 }}
                 onStop={() => {
-                  if (activeTimer && onStopTimer) onStopTimer(activeTimer.id);
+                  if (currentTimer && onStopTimer) onStopTimer(currentTimer.id);
                 }}
               />
             )}

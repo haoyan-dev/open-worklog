@@ -68,6 +68,44 @@
   text-decoration: underline;
 }
 
+/* Mantine TipTap editor tweaks */
+.mantine-RichTextEditor-content .ProseMirror {
+  padding: 12px;
+}
+
+.mantine-RichTextEditor-content .ProseMirror:focus {
+  outline: none;
+}
+
+.mantine-RichTextEditor-content .ProseMirror p {
+  margin: 0 0 8px 0;
+}
+
+.mantine-RichTextEditor-content .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Task list rendering (both editor + markdown) */
+.log-task input[type="checkbox"] {
+  margin-right: 8px;
+  transform: translateY(1px);
+}
+
+.mantine-RichTextEditor-content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mantine-RichTextEditor-content .ProseMirror li[data-type="taskItem"] {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.mantine-RichTextEditor-content .ProseMirror li[data-type="taskItem"]>label {
+  margin-top: 2px;
+}
+
 /* Simple Timeline Styles */
 .simple-timeline-container {
   width: 100%;
@@ -114,9 +152,12 @@
 
 /* Pulse animation for timer indicator */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }

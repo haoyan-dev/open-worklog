@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Paper, Stack, TextInput, Textarea, Select, Button, Group, Text, Box } from "@mantine/core";
+import { Paper, Stack, Select, Button, Group, Text, Box } from "@mantine/core";
 import type { LogEntryEditorProps, LogEntryCreate, Category } from "../types";
 import TimeSpanList from "./TimeSpanList";
 import ProjectAutocomplete from "./ProjectAutocomplete";
 import { calculateHoursFromTimeSpans, roundToQuarterHour } from "../utils/timeUtils";
+import TaskEditor from "./TaskEditor";
+import NoteEditor from "./NoteEditor";
 
 const CATEGORIES: Category[] = [
   "Routine Work",
@@ -32,7 +34,7 @@ export default function LogEntryEditor({
     () => calculateHoursFromTimeSpans(timespans),
     [timespans]
   );
-  
+
   const [formState, setFormState] = useState<LogEntryCreate>(
     entry || {
       date,
@@ -45,6 +47,8 @@ export default function LogEntryEditor({
       notes: "",
     }
   );
+
+  const [taskError, setTaskError] = useState<string | null>(null);
 
   // Update form state when entry changes
   useEffect(() => {
@@ -62,23 +66,23 @@ export default function LogEntryEditor({
     }
   }, [entry]);
 
-  const updateField = (field: keyof LogEntryCreate) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    setFormState((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
   // Total hours = TimeSpan hours only
   const totalHours = roundToQuarterHour(timespanHours);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!formState.task || formState.task.trim().length === 0) {
+      setTaskError("Task is required.");
+      return;
+    }
+    setTaskError(null);
     // Total hours will be calculated on backend, but we send it for consistency
-    onSave({ 
-      ...formState, 
+    onSave({
+      ...formState,
       hours: totalHours,
       additional_hours: 0,
-      date 
+      date
     });
   };
 
@@ -115,10 +119,6 @@ export default function LogEntryEditor({
               </Text>
               <Box p="sm" style={{ backgroundColor: "var(--mantine-color-gray-0)", borderRadius: "var(--mantine-radius-sm)" }}>
                 <Group justify="space-between" gap="xs">
-                  <Text size="sm" c="dimmed">TimeSpan hours:</Text>
-                  <Text size="sm" fw={500}>{timespanHours.toFixed(2)}h</Text>
-                </Group>
-                <Group justify="space-between" gap="xs" mt="xs" pt="xs" style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
                   <Text size="sm" fw={600}>Total hours:</Text>
                   <Text size="md" fw={700} c="blue">{totalHours.toFixed(2)}h</Text>
                 </Group>
@@ -126,18 +126,10 @@ export default function LogEntryEditor({
             </Box>
           </Group>
 
-          <Textarea
-            label="Task"
-            rows={3}
-            value={formState.task}
-            onChange={updateField("task")}
-            required
-          />
-
           {timespans && timespans.length > 0 && (
             <Box>
-              <TimeSpanList 
-                timespans={timespans} 
+              <TimeSpanList
+                timespans={timespans}
                 collapsed={false}
                 onAdjust={onTimeSpanAdjust}
                 onUpdate={onTimeSpanUpdate}
@@ -145,11 +137,27 @@ export default function LogEntryEditor({
             </Box>
           )}
 
-          <Textarea
+          <TaskEditor
+            label="Task"
+            required
+            value={formState.task}
+            error={taskError}
+            placeholder={"- [ ] Item 1\n- [ ] Item 2"}
+            onChange={(markdown) => {
+              setFormState((prev) => ({ ...prev, task: markdown }));
+              if (taskError && markdown.trim().length > 0) {
+                setTaskError(null);
+              }
+            }}
+          />
+
+          <NoteEditor
             label="Notes"
-            rows={3}
             value={formState.notes || ""}
-            onChange={updateField("notes")}
+            placeholder={"Add any notes (Markdown supported)"}
+            onChange={(markdown) => {
+              setFormState((prev) => ({ ...prev, notes: markdown }));
+            }}
           />
 
           <Group justify="flex-end" mt="md">

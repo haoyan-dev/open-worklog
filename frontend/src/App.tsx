@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Container, Stack, Button, Loader, Alert, ActionIcon } from "@mantine/core";
+import { Container, Stack, Button, Loader, Alert } from "@mantine/core";
 
 import {
   createLog,
@@ -37,10 +37,7 @@ export default function App() {
   const queryClient = useQueryClient();
   
   // Timer state management
-  const {
-    data: activeTimer,
-    isLoading: timerLoading,
-  } = useQuery<Timer | null>({
+  const { data: activeTimer } = useQuery<Timer | null>({
     queryKey: ["activeTimer"],
     queryFn: getActiveTimer,
     refetchInterval: 30000, // Poll every 30 seconds
@@ -348,6 +345,26 @@ export default function App() {
     createMutation.mutate(payload);
   };
 
+  const handleTaskMarkdownChange = (entryId: number, nextTaskMarkdown: string) => {
+    const entry = logs.find((e) => e.id === entryId);
+    if (!entry) return;
+
+    // Auto-save: update the entry's task markdown while preserving other fields.
+    updateMutation.mutate({
+      id: entryId,
+      payload: {
+        date: entry.date,
+        category: entry.category,
+        project_id: entry.project_id,
+        task: nextTaskMarkdown,
+        hours: entry.hours,
+        additional_hours: entry.additional_hours ?? 0,
+        status: entry.status || "Completed",
+        notes: entry.notes || "",
+      },
+    });
+  };
+
   return (
     <div className="app">
       <DateNavigator date={selectedDate} onChange={setSelectedDate} />
@@ -406,6 +423,7 @@ export default function App() {
                     onDelete={(id) => deleteMutation.mutate(id)}
                     activeTimer={activeTimer}
                     timespans={timespansMap[entry.id] || []}
+                    onTaskMarkdownChange={handleTaskMarkdownChange}
                     onStartTimer={(entryId) =>
                       startTimerMutation.mutate({ entryId })
                     }
@@ -445,7 +463,7 @@ export default function App() {
           </Stack>
         </Stack>
       </Container>
-      <ActionIcon
+      {/* <ActionIcon
         size="xl"
         radius="xl"
         variant="filled"
@@ -458,7 +476,7 @@ export default function App() {
         aria-label="Add log entry"
       >
         +
-      </ActionIcon>
+      </ActionIcon> */}
     </div>
   );
 }

@@ -80,6 +80,7 @@ export interface LogEntryCardProps {
   onStopTimer?: (timerId: number) => void;
   onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
   onTimeSpanUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
+  onTaskMarkdownChange?: (entryId: number, nextTaskMarkdown: string) => void;
 }
 
 export interface LogEntryEditorProps {
