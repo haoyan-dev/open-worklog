@@ -1,6 +1,7 @@
 import type {
   LogEntry,
   LogEntryCreate,
+  DailyStat,
   Project,
   TimeSpanStartRequest,
   TimeSpan,
@@ -32,6 +33,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export function fetchLogsByDate(date: string): Promise<LogEntry[]> {
   return request<LogEntry[]>(`${API_BASE}/logs/${date}`);
+}
+
+export function fetchStats(startDate: string, endDate: string): Promise<DailyStat[]> {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  return request<DailyStat[]>(`${API_BASE}/stats?${params.toString()}`);
 }
 
 export function fetchLogByUuid(uuid: string): Promise<LogEntry> {

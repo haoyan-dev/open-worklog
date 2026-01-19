@@ -26,6 +26,12 @@ export interface LogEntry {
   notes?: string;
 }
 
+export interface DailyStat {
+  date: string; // ISO date string (YYYY-MM-DD)
+  total_hours: number;
+  category_hours: Record<string, number>;
+}
+
 export interface TimeSpan {
   id: number;
   log_entry_id: number;

@@ -16,7 +16,7 @@ const root = createRoot(document.getElementById("root")!);
 root.render(
   <React.StrictMode>
     <MantineProvider>
-      <DatesProvider settings={{ firstDayOfWeek: 0 }}>
+      <DatesProvider settings={{ firstDayOfWeek: 1 }}>
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>
