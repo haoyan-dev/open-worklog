@@ -13,6 +13,8 @@ export interface Project {
 
 export interface LogEntry {
   id: number;
+  uuid: string;
+  previous_task_uuid?: string;
   date: string; // ISO date string (YYYY-MM-DD)
   category: Category;
   project_id: number;
@@ -41,9 +43,10 @@ export interface LogEntryCreate {
   additional_hours: number; // Manually added hours
   status?: string;
   notes?: string;
+  previous_task_uuid?: string;
 }
 
-export interface LogEntryUpdate extends LogEntryCreate {}
+export interface LogEntryUpdate extends LogEntryCreate { }
 
 export interface DateNavigatorProps {
   date: Date;
@@ -57,8 +60,13 @@ export interface DailySnapshotProps {
 
 export interface LogEntryCardProps {
   entry: LogEntry;
+  cardNumber: number;
+  expanded: boolean;
+  onToggleExpanded: (entryId: number) => void;
   onEdit: (entry: LogEntry) => void;
   onDelete: (id: number) => void;
+  onNewDraftFromEntry?: (entry: LogEntry) => void;
+  onDuplicateEntry?: (entry: LogEntry) => void;
   activeTimeSpan?: TimeSpan | null;
   timespans?: TimeSpan[];
   onStartSession?: (entryId: number) => void;
@@ -74,8 +82,10 @@ export interface LogEntryCardProps {
 export interface LogEntryEditorProps {
   entry?: LogEntry;
   date: string;
+  seed?: Partial<LogEntryCreate>;
   onSave: (payload: LogEntryCreate) => void;
   onCancel: () => void;
+  onOpenByUuid?: (uuid: string) => void;
   timespans?: TimeSpan[];
   onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
   onTimeSpanUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;

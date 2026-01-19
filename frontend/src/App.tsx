@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Container, Stack, Button, Loader, Alert } from "@mantine/core";
+import { Container, Stack, Button, Loader, Alert, Modal, Group, Radio, Text } from "@mantine/core";
+import { DateInput } from "@mantine/dates";
 
 import {
   createLog,
@@ -30,10 +31,24 @@ function formatDate(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function parseLocalDate(value: string): Date {
+  // value is YYYY-MM-DD; construct a local Date (avoid UTC shifting)
+  const [y, m, d] = value.split("-").map((v) => Number(v));
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
 export default function App() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [editingEntry, setEditingEntry] = useState<LogEntry | null>(null);
   const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [createSeed, setCreateSeed] = useState<Partial<LogEntryCreate> | null>(null);
+  const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
+
+  // Duplicate modal state
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupSource, setDupSource] = useState<LogEntry | null>(null);
+  const [dupDestinationMode, setDupDestinationMode] = useState<"today" | "pick">("today");
+  const [dupPickedDate, setDupPickedDate] = useState<Date | null>(null);
   const queryClient = useQueryClient();
 
   // Timer state management
@@ -56,9 +71,11 @@ export default function App() {
 
   const createMutation = useMutation<LogEntry, Error, LogEntryCreate>({
     mutationFn: createLog,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["logs", dateString] });
+    onSuccess: (created) => {
+      // Invalidate the created entry's date (important for cross-date duplication).
+      queryClient.invalidateQueries({ queryKey: ["logs", created.date] });
       setIsCreating(false);
+      setCreateSeed(null);
     },
   });
 
@@ -358,6 +375,58 @@ export default function App() {
     createMutation.mutate(payload);
   };
 
+  // Collapse overview cards when entering editor mode.
+  useEffect(() => {
+    if (editingEntry) setExpandedEntryId(null);
+  }, [editingEntry]);
+
+  const openNewDraftFromEntry = (entry: LogEntry) => {
+    setEditingEntry(null);
+    setIsCreating(true);
+    setCreateSeed({
+      project_id: entry.project_id,
+      category: entry.category,
+    });
+  };
+
+  const openDuplicateModal = (entry: LogEntry) => {
+    setDupSource(entry);
+    setDupDestinationMode("today");
+    setDupPickedDate(null);
+    setDupOpen(true);
+  };
+
+  const confirmDuplicate = async () => {
+    if (!dupSource) return;
+    const dest =
+      dupDestinationMode === "today" ? new Date() : dupPickedDate;
+    if (!dest) return;
+
+    const destDateString = formatDate(dest);
+    const created = await createMutation.mutateAsync({
+      date: destDateString,
+      category: dupSource.category,
+      project_id: dupSource.project_id,
+      task: dupSource.task,
+      hours: 0,
+      additional_hours: 0,
+      status: dupSource.status || "Completed",
+      notes: dupSource.notes || "",
+      previous_task_uuid: dupSource.uuid,
+    });
+
+    setDupOpen(false);
+    setDupSource(null);
+    setDupPickedDate(null);
+    setDupDestinationMode("today");
+
+    // Navigate to the destination day and open the new entry in edit mode.
+    setSelectedDate(parseLocalDate(created.date));
+    setEditingEntry(created);
+    setIsCreating(false);
+    setCreateSeed(null);
+  };
+
   const handleTaskMarkdownChange = (entryId: number, nextTaskMarkdown: string) => {
     const entry = logs.find((e) => e.id === entryId);
     if (!entry) return;
@@ -378,6 +447,30 @@ export default function App() {
     });
   };
 
+  const handleOpenByUuid = async (uuid: string) => {
+    // SPA navigation: prefer opening from currently loaded data to avoid a URL-based router.
+    const fromLoaded = logs.find((e) => e.uuid === uuid);
+    if (fromLoaded) {
+      setSelectedDate(parseLocalDate(fromLoaded.date));
+      setEditingEntry(fromLoaded);
+      setIsCreating(false);
+      setCreateSeed(null);
+      return;
+    }
+
+    // Fallback: if not in current day’s list, fetch from backend by uuid.
+    try {
+      const { fetchLogByUuid } = await import("./api");
+      const entry = await fetchLogByUuid(uuid);
+      setSelectedDate(parseLocalDate(entry.date));
+      setEditingEntry(entry);
+      setIsCreating(false);
+      setCreateSeed(null);
+    } catch (e) {
+      console.warn("[App] Failed to open entry by uuid", { uuid, e });
+    }
+  };
+
   return (
     <div className="app">
       <DateNavigator date={selectedDate} onChange={setSelectedDate} />
@@ -392,6 +485,7 @@ export default function App() {
           {isCreating && !editingEntry ? (
             <LogEntryEditor
               date={dateString}
+              seed={createSeed ?? undefined}
               onSave={handleSave}
               onCancel={() => setIsCreating(false)}
               timespans={[]}
@@ -412,6 +506,9 @@ export default function App() {
                 date={dateString}
                 onSave={handleSave}
                 onCancel={() => setEditingEntry(null)}
+                onOpenByUuid={(uuid) => {
+                  void handleOpenByUuid(uuid);
+                }}
                 timespans={timespansMap[editingEntry.id] || []}
                 onTimeSpanAdjust={(timespanId, hours) =>
                   adjustTimeSpanMutation.mutate({ timespanId, hours })
@@ -443,12 +540,33 @@ export default function App() {
             ) : (
               // When not editing, show all cards (LogEntryCard components)
               <>
-                {logs.map((entry) => (
+                {!isCreating && !isLoading && (
+                  <Button
+                    variant="light"
+                    fullWidth
+                    onClick={() => {
+                      setEditingEntry(null);
+                      setIsCreating(true);
+                      setCreateSeed(null);
+                    }}
+                    leftSection="➕"
+                  >
+                    Add Log Entry
+                  </Button>
+                )}
+                {[...logs].reverse().map((entry) => (
                   <LogEntryCard
                     key={entry.id}
                     entry={entry}
+                    cardNumber={entry.id}
+                    expanded={expandedEntryId === entry.id}
+                    onToggleExpanded={(entryId) => {
+                      setExpandedEntryId((prev) => (prev === entryId ? null : entryId));
+                    }}
                     onEdit={(log) => setEditingEntry(log)}
                     onDelete={(id) => deleteMutation.mutate(id)}
+                    onNewDraftFromEntry={openNewDraftFromEntry}
+                    onDuplicateEntry={openDuplicateModal}
                     activeTimeSpan={activeTimeSpan}
                     timespans={timespansMap[entry.id] || []}
                     onTaskMarkdownChange={handleTaskMarkdownChange}
@@ -484,24 +602,73 @@ export default function App() {
                     }}
                   />
                 ))}
-                {!isCreating && !isLoading && (
-                  <Button
-                    variant="light"
-                    fullWidth
-                    onClick={() => {
-                      setEditingEntry(null);
-                      setIsCreating(true);
-                    }}
-                    leftSection="➕"
-                  >
-                    Add Log Entry
-                  </Button>
-                )}
               </>
             )}
           </Stack>
         </Stack>
       </Container>
+
+      <Modal
+        opened={dupOpen}
+        onClose={() => {
+          setDupOpen(false);
+          setDupSource(null);
+          setDupPickedDate(null);
+          setDupDestinationMode("today");
+        }}
+        title="Duplicate log"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            This duplicates project/category/task/notes/status and creates an entry with 0 sessions.
+          </Text>
+
+          <Radio.Group
+            value={dupDestinationMode}
+            onChange={(value) => setDupDestinationMode(value as "today" | "pick")}
+            name="dup-destination"
+            label="Destination"
+          >
+            <Stack gap="xs" mt="xs">
+              <Radio value="today" label="Today (local)" />
+              <Radio value="pick" label="Pick a date" />
+            </Stack>
+          </Radio.Group>
+
+          {dupDestinationMode === "pick" ? (
+            <DateInput
+              value={dupPickedDate}
+              onChange={(d) => setDupPickedDate(d as Date | null)}
+              valueFormat="YYYY-MM-DD"
+              label="Destination date"
+              placeholder="Select date"
+            />
+          ) : null}
+
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => {
+                setDupOpen(false);
+                setDupSource(null);
+                setDupPickedDate(null);
+                setDupDestinationMode("today");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                void confirmDuplicate();
+              }}
+              disabled={dupDestinationMode === "pick" && !dupPickedDate}
+            >
+              Duplicate
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       {/* <ActionIcon
         size="xl"
         radius="xl"

@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from enum import Enum
+import uuid as uuidlib
 
 from sqlalchemy import Column, Date, DateTime, Enum as SqlEnum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -12,6 +13,10 @@ def utc_now():
     SQLAlchemy DateTime columns store as naive UTC datetime objects.
     """
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+def generate_uuid() -> str:
+    """Generate a UUID string for stable LogEntry references."""
+    return str(uuidlib.uuid4())
 
 
 class Category(str, Enum):
@@ -40,6 +45,10 @@ class LogEntry(Base):
     __tablename__ = "log_entries"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Stable identifier (useful for duplication lineage and external references)
+    uuid = Column(String(36), nullable=False, default=generate_uuid, unique=True, index=True)
+    # UUID of the source entry this entry was duplicated from (if any)
+    previous_task_uuid = Column(String(36), nullable=True, index=True)
     date = Column(Date, nullable=False, index=True)
     category = Column(SqlEnum(Category), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)

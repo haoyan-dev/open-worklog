@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+import uuid as uuidlib
 
 from typing import Optional
 
@@ -59,11 +60,24 @@ def get_log(db: Session, log_id: int):
     )
 
 
+def get_log_by_uuid(db: Session, log_uuid: str):
+    from sqlalchemy.orm import joinedload
+
+    return (
+        db.query(LogEntry)
+        .options(joinedload(LogEntry.project_rel))
+        .filter(LogEntry.uuid == log_uuid)
+        .first()
+    )
+
+
 def create_log(db: Session, log: LogEntryCreate):
-    log_dict = log.dict()
+    log_dict = log.model_dump()
     additional_hours = log_dict.pop("additional_hours", 0.0)
     # Remove hours since we'll recalculate it
     log_dict.pop("hours", None)
+    # Ensure server-side UUID exists even if DB didn't apply default (or client omitted).
+    log_dict.setdefault("uuid", str(uuidlib.uuid4()))
 
     # Set initial hours to 0, will be recalculated
     entry = LogEntry(
@@ -95,8 +109,11 @@ def update_log(db: Session, log_id: int, log: LogEntryUpdate):
     if not entry:
         return None
 
-    log_dict = log.dict()
+    # Use exclude_unset so omitted optional fields (like previous_task_uuid) won't be overwritten.
+    log_dict = log.model_dump(exclude_unset=True)
     additional_hours = log_dict.pop("additional_hours", entry.additional_hours)
+    # Never allow uuid to change via update payload.
+    log_dict.pop("uuid", None)
 
     # Update all fields except hours (which will be recalculated)
     for field, value in log_dict.items():

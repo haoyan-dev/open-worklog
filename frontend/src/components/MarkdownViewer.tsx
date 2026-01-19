@@ -80,6 +80,7 @@ export default function MarkdownViewer({
     content: value ?? "",
     contentType: "markdown" as any,
     editable: enableTaskToggle,
+    // TipTap v3 expects editorProps to always be an object
     editorProps: enableTaskToggle
       ? {
           // Allow mouse interactions (checkbox toggle), but block editing via keyboard/paste/drop.
@@ -89,7 +90,7 @@ export default function MarkdownViewer({
             drop: () => true,
           },
         }
-      : undefined,
+      : {},
     onUpdate: enableTaskToggle
       ? ({ editor }) => {
           if (!onChange) return;

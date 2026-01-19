@@ -1,5 +1,6 @@
 import React from "react";
-import { Group, Button, Text, Badge } from "@mantine/core";
+import { ActionIcon, Badge, Group, Text, Tooltip } from "@mantine/core";
+import { IconPlayerPause, IconPlayerPlay, IconPlayerStop } from "@tabler/icons-react";
 import { useTimer } from "../hooks/useTimer";
 import type { TimeSpan } from "../types";
 
@@ -8,6 +9,7 @@ interface TimerControlsProps {
   entryId: number;
   timespans?: TimeSpan[];
   disabled?: boolean;
+  mode?: "status" | "actions" | "both";
   onStart: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -18,6 +20,7 @@ export default function TimerControls({
   entryId,
   timespans = [],
   disabled = false,
+  mode = "both",
   onStart,
   onPause,
   onStop,
@@ -30,10 +33,11 @@ export default function TimerControls({
 
   const canPause = isActiveForThisEntry && isRunning;
   const canStop = isActiveForThisEntry && isRunning;
+  const canStart = !isActiveForThisEntry;
 
   return (
     <Group gap="sm" align="center">
-      {isActiveForThisEntry && (
+      {(mode === "status" || mode === "both") && isActiveForThisEntry && (
         <Group gap="xs" align="center">
           <Badge
             color="green"
@@ -45,44 +49,52 @@ export default function TimerControls({
           >
             Running
           </Badge>
-          <Text fw={600} size="sm">
+          <Text fw={600} size="sm" style={{ fontFamily: "monospace" }}>
             {formattedTime}
           </Text>
         </Group>
       )}
-      <Group gap="xs">
-        {!isActiveForThisEntry && (
-          <Button
-            size="xs"
-            color="green"
-            variant="light"
-            onClick={onStart}
-            disabled={disabled}
-          >
-            Start
-          </Button>
-        )}
-        {canPause && (
-          <Button
-            size="xs"
-            color="orange"
-            variant="light"
-            onClick={onPause}
-          >
-            Pause
-          </Button>
-        )}
-        {canStop && (
-          <Button
-            size="xs"
-            color="red"
-            variant="light"
-            onClick={onStop}
-          >
-            Stop
-          </Button>
-        )}
-      </Group>
+      {(mode === "actions" || mode === "both") && (
+        <Group gap={6}>
+          {canStart && (
+            <Tooltip label="Start timer" withArrow>
+              <ActionIcon
+                variant="light"
+                color="green"
+                onClick={onStart}
+                disabled={disabled}
+                aria-label="Start timer"
+              >
+                <IconPlayerPlay size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {canPause && (
+            <Tooltip label="Pause timer" withArrow>
+              <ActionIcon
+                variant="light"
+                color="orange"
+                onClick={onPause}
+                aria-label="Pause timer"
+              >
+                <IconPlayerPause size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {canStop && (
+            <Tooltip label="Stop timer" withArrow>
+              <ActionIcon
+                variant="light"
+                color="red"
+                onClick={onStop}
+                aria-label="Stop timer"
+              >
+                <IconPlayerStop size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </Group>
+      )}
     </Group>
   );
 }

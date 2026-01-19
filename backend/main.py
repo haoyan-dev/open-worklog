@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 import crud
 import models
 import schemas
-from db import Base, engine, get_db
+from db import Base, engine, ensure_schema, get_db
 
 Base.metadata.create_all(bind=engine)
+ensure_schema(engine)
 
 app = FastAPI(title="Open Worklog API", openapi_url="/api/v1/openapi.json")
 
@@ -27,6 +28,14 @@ app.add_middleware(
 @app.get("/api/v1/logs/{log_date}", response_model=list[schemas.LogEntryRead])
 def get_logs_for_date(log_date: date, db: Session = Depends(get_db)):
     return crud.get_logs_by_date(db, log_date)
+
+
+@app.get("/api/v1/logs/uuid/{log_uuid}", response_model=schemas.LogEntryRead)
+def get_log_by_uuid(log_uuid: str, db: Session = Depends(get_db)):
+    entry = crud.get_log_by_uuid(db, log_uuid)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+    return entry
 
 
 @app.get("/api/v1/stats", response_model=list[schemas.DailyStat])

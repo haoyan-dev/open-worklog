@@ -42,6 +42,7 @@ class LogEntryBase(BaseModel):
     additional_hours: float = Field(default=0.0, ge=0)  # Manually added hours
     status: Optional[str] = "Completed"
     notes: Optional[str] = None
+    previous_task_uuid: Optional[str] = None
 
 
 class LogEntryCreate(LogEntryBase):
@@ -54,6 +55,7 @@ class LogEntryUpdate(LogEntryBase):
 
 class LogEntryRead(LogEntryBase):
     id: int
+    uuid: str
     project_name: Optional[str] = None  # Populated from relationship
 
     class Config:

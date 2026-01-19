@@ -34,6 +34,10 @@ export function fetchLogsByDate(date: string): Promise<LogEntry[]> {
   return request<LogEntry[]>(`${API_BASE}/logs/${date}`);
 }
 
+export function fetchLogByUuid(uuid: string): Promise<LogEntry> {
+  return request<LogEntry>(`${API_BASE}/logs/uuid/${encodeURIComponent(uuid)}`);
+}
+
 export function createLog(payload: LogEntryCreate): Promise<LogEntry> {
   return request<LogEntry>(`${API_BASE}/logs`, {
     method: "POST",

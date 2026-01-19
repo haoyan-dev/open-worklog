@@ -74,6 +74,8 @@ export default function NoteEditor({
     content: value ?? "",
     // TipTap Markdown uses this to parse initial content as Markdown
     contentType: "markdown" as any,
+    // TipTap v3 expects editorProps to always be an object
+    editorProps: {},
     onUpdate: ({ editor }) => {
       onChange(getEditorMarkdown(editor));
     },
