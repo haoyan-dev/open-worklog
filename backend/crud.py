@@ -7,6 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import LogEntry, Project, TimeSpan, Timer, TimerStatus
+from time_merge import SpanLike, plan_connectable_timespan_merges
 from schemas import (
     LogEntryCreate,
     LogEntryUpdate,
@@ -35,6 +36,112 @@ def round_to_quarter_hour(dt: datetime) -> datetime:
     )
     midnight = dt.replace(hour=0, minute=0, second=0, microsecond=0)
     return midnight + timedelta(minutes=rounded_minutes)
+
+
+def normalize_span(
+    start_timestamp: datetime, end_timestamp: datetime | None
+) -> tuple[datetime, datetime | None]:
+    """Normalize a span by rounding to quarter-hour and enforcing min duration."""
+    new_start = round_to_quarter_hour(start_timestamp)
+    if end_timestamp is None:
+        return new_start, None
+
+    new_end = round_to_quarter_hour(end_timestamp)
+    if new_end <= new_start:
+        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+
+    duration = (new_end - new_start).total_seconds() / 3600.0
+    if duration < 0.25:
+        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+
+    return new_start, new_end
+
+
+def maybe_close_open_timespan(
+    db: Session,
+    *,
+    incoming_start: datetime,
+    incoming_end: datetime | None,
+    exclude_timespan_id: int | None = None,
+) -> None:
+    """Close a running span if a manual change would overlap or be in the future."""
+    active = get_active_timespan(db)
+    if not active:
+        return
+    if exclude_timespan_id is not None and active.id == exclude_timespan_id:
+        return
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if incoming_start > now:
+        end_timespan(db, active.id)
+        return
+
+    open_start = active.start_timestamp
+    open_end = now
+    candidate_end = incoming_end or now
+    overlaps = incoming_start <= open_end and candidate_end >= open_start
+    if overlaps:
+        end_timespan(db, active.id)
+
+
+def merge_connectable_timespans_for_entry(
+    db: Session,
+    log_entry_id: int,
+    gap_minutes: int = QUARTER_HOUR_MINUTES,
+    prefer_timespan_id: int | None = None,
+) -> None:
+    """Merge connectable TimeSpans for an entry so they never overlap.
+
+    Connectable rule (inclusive): next.start <= current.end + gap
+    - Overlaps are included (next.start < current.end)
+    - Touching spans are included (next.start == current.end)
+    - Small gaps up to gap_minutes are included
+
+    Open/running spans (end_timestamp is NULL) are treated as end=now for
+    connectability checks so they do not absorb future spans.
+    """
+    spans = (
+        db.query(TimeSpan)
+        .filter(TimeSpan.log_entry_id == log_entry_id)
+        .order_by(TimeSpan.start_timestamp.asc(), TimeSpan.id.asc())
+        .all()
+    )
+    if len(spans) <= 1:
+        return
+
+    span_likes = [
+        SpanLike(id=s.id, start_timestamp=s.start_timestamp, end_timestamp=s.end_timestamp)
+        for s in spans
+    ]
+    reference_now = datetime.now(timezone.utc).replace(tzinfo=None)
+    plans = plan_connectable_timespan_merges(
+        span_likes,
+        gap_minutes=gap_minutes,
+        prefer_timespan_id=prefer_timespan_id,
+        reference_now=reference_now,
+    )
+    if not plans:
+        return
+
+    by_id: dict[int, TimeSpan] = {s.id: s for s in spans}
+    for plan in plans:
+        keeper = by_id.get(plan.keeper_id)
+        if keeper is None:
+            # Should not happen; be defensive.
+            continue
+        keeper.start_timestamp = plan.merged_start
+        keeper.end_timestamp = plan.merged_end
+        for delete_id in plan.delete_ids:
+            span = by_id.get(delete_id)
+            if span is not None:
+                db.delete(span)
+
+    db.commit()
+
+    entry = get_log(db, log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
 
 
 def get_logs_by_date(db: Session, target_date: date):
@@ -215,10 +322,11 @@ def search_projects(db: Session, query: str):
 
 # TimeSpan CRUD operations
 def get_timespans_for_entry(db: Session, log_entry_id: int):
+    merge_connectable_timespans_for_entry(db, log_entry_id)
     return (
         db.query(TimeSpan)
         .filter(TimeSpan.log_entry_id == log_entry_id)
-        .order_by(TimeSpan.created_at.asc())
+        .order_by(TimeSpan.start_timestamp.asc(), TimeSpan.id.asc())
         .all()
     )
 
@@ -255,13 +363,13 @@ def end_timespan(db: Session, timespan_id: int) -> TimeSpan | None:
 
     if timespan.end_timestamp:
         # Already ended; no-op.
+        merge_connectable_timespans_for_entry(
+            db, timespan.log_entry_id, prefer_timespan_id=timespan.id
+        )
         return timespan
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    start_ts = round_to_quarter_hour(timespan.start_timestamp)
-    end_ts = round_to_quarter_hour(now)
-    if end_ts <= start_ts:
-        end_ts = start_ts + timedelta(minutes=QUARTER_HOUR_MINUTES)
+    start_ts, end_ts = normalize_span(timespan.start_timestamp, now)
 
     timespan.start_timestamp = start_ts
     timespan.end_timestamp = end_ts
@@ -274,6 +382,9 @@ def end_timespan(db: Session, timespan_id: int) -> TimeSpan | None:
         db.commit()
         db.refresh(entry)
 
+    merge_connectable_timespans_for_entry(
+        db, timespan.log_entry_id, prefer_timespan_id=timespan.id
+    )
     return timespan
 
 
@@ -289,11 +400,42 @@ def start_timespan_for_entry(db: Session, log_entry_id: int) -> TimeSpan | None:
 
     active = get_active_timespan(db)
     if active:
-        # Auto-pause the existing active session (even if it belongs to the same entry).
+        # If the active session is already for this entry, just return it.
+        if active.log_entry_id == log_entry_id:
+            return active
+        # Otherwise auto-pause the existing active session.
         end_timespan(db, active.id)
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     start_ts = round_to_quarter_hour(now)
+
+    # If the most recent span for this entry is connectable (<= 15m gap),
+    # reopen it instead of creating a new row.
+    last_span = (
+        db.query(TimeSpan)
+        .filter(TimeSpan.log_entry_id == log_entry_id)
+        .order_by(TimeSpan.start_timestamp.desc(), TimeSpan.id.desc())
+        .first()
+    )
+    if last_span:
+        if last_span.end_timestamp is None:
+            return last_span
+        if last_span.end_timestamp is not None:
+            if start_ts <= last_span.end_timestamp + timedelta(
+                minutes=QUARTER_HOUR_MINUTES
+            ):
+                last_span.end_timestamp = None
+                db.commit()
+                db.refresh(last_span)
+
+                # Recalculate total hours for the log entry (open spans don't count).
+                entry.hours = calculate_total_hours(
+                    db, entry.id, entry.additional_hours
+                )
+                db.commit()
+                db.refresh(entry)
+                return last_span
+
     timespan = TimeSpan(
         log_entry_id=log_entry_id,
         start_timestamp=start_ts,
@@ -302,6 +444,9 @@ def start_timespan_for_entry(db: Session, log_entry_id: int) -> TimeSpan | None:
     db.add(timespan)
     db.commit()
     db.refresh(timespan)
+    merge_connectable_timespans_for_entry(
+        db, log_entry_id, prefer_timespan_id=timespan.id
+    )
     return timespan
 
 
@@ -321,46 +466,15 @@ def adjust_timespan(db: Session, timespan_id: int, hours: float):
     adjustment = timedelta(hours=hours_rounded)
     new_end = timespan.end_timestamp + adjustment
 
+    maybe_close_open_timespan(
+        db,
+        incoming_start=timespan.start_timestamp,
+        incoming_end=new_end,
+        exclude_timespan_id=timespan.id,
+    )
+
     # Ensure new_end is after start_timestamp
-    if new_end <= timespan.start_timestamp:
-        new_end = timespan.start_timestamp + timedelta(minutes=15)  # Minimum 0.25h
-
-    timespan.end_timestamp = new_end
-    db.commit()
-    db.refresh(timespan)
-
-    # Recalculate total hours for the log entry
-    entry = get_log(db, timespan.log_entry_id)
-    if entry:
-        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
-        db.commit()
-        db.refresh(entry)
-
-    return timespan
-
-
-def update_timespan(db: Session, timespan_id: int, update: TimeSpanUpdate):
-    """Update TimeSpan start_timestamp and end_timestamp.
-    Rounds to nearest 0.25 hour increment and ensures minimum duration of 0.25h."""
-    timespan = get_timespan(db, timespan_id)
-    if not timespan:
-        return None
-
-    new_start = round_to_quarter_hour(update.start_timestamp)
-    new_end = update.end_timestamp
-    if new_end:
-        new_end = round_to_quarter_hour(new_end)
-
-        # Validate: end must be after start
-        if new_end <= new_start:
-            # Ensure minimum duration of 0.25h
-            new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
-
-        # Calculate duration
-        duration = (new_end - new_start).total_seconds() / 3600.0
-        if duration < 0.25:
-            # Ensure minimum duration of 0.25h
-            new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+    new_start, new_end = normalize_span(timespan.start_timestamp, new_end)
 
     timespan.start_timestamp = new_start
     timespan.end_timestamp = new_end
@@ -374,6 +488,42 @@ def update_timespan(db: Session, timespan_id: int, update: TimeSpanUpdate):
         db.commit()
         db.refresh(entry)
 
+    merge_connectable_timespans_for_entry(
+        db, timespan.log_entry_id, prefer_timespan_id=timespan.id
+    )
+    return timespan
+
+
+def update_timespan(db: Session, timespan_id: int, update: TimeSpanUpdate):
+    """Update TimeSpan start_timestamp and end_timestamp.
+    Rounds to nearest 0.25 hour increment and ensures minimum duration of 0.25h."""
+    timespan = get_timespan(db, timespan_id)
+    if not timespan:
+        return None
+
+    new_start, new_end = normalize_span(update.start_timestamp, update.end_timestamp)
+    maybe_close_open_timespan(
+        db,
+        incoming_start=new_start,
+        incoming_end=new_end,
+        exclude_timespan_id=timespan.id,
+    )
+
+    timespan.start_timestamp = new_start
+    timespan.end_timestamp = new_end
+    db.commit()
+    db.refresh(timespan)
+
+    # Recalculate total hours for the log entry
+    entry = get_log(db, timespan.log_entry_id)
+    if entry:
+        entry.hours = calculate_total_hours(db, entry.id, entry.additional_hours)
+        db.commit()
+        db.refresh(entry)
+
+    merge_connectable_timespans_for_entry(
+        db, timespan.log_entry_id, prefer_timespan_id=timespan.id
+    )
     return timespan
 
 
@@ -388,17 +538,12 @@ def create_timespan_for_entry(
     if not entry:
         return None
 
-    new_start = round_to_quarter_hour(start_timestamp)
-    new_end = round_to_quarter_hour(end_timestamp)
-
-    # Validate: end must be after start
-    if new_end <= new_start:
-        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
-
-    # Ensure minimum duration of 0.25h
-    duration = (new_end - new_start).total_seconds() / 3600.0
-    if duration < 0.25:
-        new_end = new_start + timedelta(minutes=QUARTER_HOUR_MINUTES)
+    new_start, new_end = normalize_span(start_timestamp, end_timestamp)
+    maybe_close_open_timespan(
+        db,
+        incoming_start=new_start,
+        incoming_end=new_end,
+    )
 
     timespan = TimeSpan(
         log_entry_id=log_entry_id,
@@ -414,6 +559,9 @@ def create_timespan_for_entry(
     db.commit()
     db.refresh(entry)
 
+    merge_connectable_timespans_for_entry(
+        db, log_entry_id, prefer_timespan_id=timespan.id
+    )
     return timespan
 
 
@@ -532,10 +680,7 @@ def pause_timer(db: Session, timer_id: int):
     # Create TimeSpan for the current session
     # Use timezone-aware UTC datetime, then convert to naive for database storage
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    start_ts = round_to_quarter_hour(timer.started_at)
-    end_ts = round_to_quarter_hour(now)
-    if end_ts <= start_ts:
-        end_ts = start_ts + timedelta(minutes=QUARTER_HOUR_MINUTES)
+    start_ts, end_ts = normalize_span(timer.started_at, now)
     timespan = TimeSpan(
         log_entry_id=timer.log_entry_id,
         start_timestamp=start_ts,
@@ -547,6 +692,9 @@ def pause_timer(db: Session, timer_id: int):
     timer.status = TimerStatus.PAUSED
     db.commit()
     db.refresh(timer)
+    merge_connectable_timespans_for_entry(
+        db, timer.log_entry_id, prefer_timespan_id=timespan.id
+    )
     return timer
 
 
@@ -578,10 +726,7 @@ def stop_timer(db: Session, timer_id: int):
 
     # Use timezone-aware UTC datetime, then convert to naive for database storage
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    start_ts = round_to_quarter_hour(timer.started_at)
-    end_ts = round_to_quarter_hour(now)
-    if end_ts <= start_ts:
-        end_ts = start_ts + timedelta(minutes=QUARTER_HOUR_MINUTES)
+    start_ts, end_ts = normalize_span(timer.started_at, now)
 
     # Create final TimeSpan
     timespan = TimeSpan(
@@ -599,6 +744,10 @@ def stop_timer(db: Session, timer_id: int):
         )
         db.commit()
         db.refresh(entry)
+
+    merge_connectable_timespans_for_entry(
+        db, timer.log_entry_id, prefer_timespan_id=timespan.id
+    )
 
     # Delete timer
     db.delete(timer)

@@ -87,6 +87,7 @@ export interface LogEntryEditorProps {
   onCancel: () => void;
   onOpenByUuid?: (uuid: string) => void;
   timespans?: TimeSpan[];
+  activeTimeSpan?: TimeSpan | null;
   onTimeSpanAdjust?: (timespanId: number, hours: number) => void;
   onTimeSpanUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
   onTimeSpanCreate?: (startTimestamp: string, endTimestamp: string) => Promise<void>;

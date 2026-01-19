@@ -10,6 +10,7 @@ import TimeSpanSession from "./TimeSpanSession";
 interface TimeSpanListProps {
   logEntryId: number;
   timespans: TimeSpan[];
+  activeTimeSpan?: TimeSpan | null;
   collapsed?: boolean;
   onAdjust?: (timespanId: number, hours: number) => void;
   onUpdate?: (timespanId: number, startTimestamp: string, endTimestamp?: string) => void;
@@ -71,6 +72,7 @@ function withLocalDateAndTime(localDate: Date, timeValue: string): string | null
 export default function TimeSpanList({
   logEntryId,
   timespans,
+  activeTimeSpan,
   collapsed: initiallyCollapsed = true,
   onAdjust,
   onUpdate,
@@ -93,7 +95,11 @@ export default function TimeSpanList({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const canCreate = Boolean(onCreate);
+  const isRunningForEntry =
+    Boolean(activeTimeSpan) &&
+    activeTimeSpan?.log_entry_id === logEntryId &&
+    !activeTimeSpan?.end_timestamp;
+  const canCreate = Boolean(onCreate) && !isRunningForEntry;
 
   // Parse timestamps as UTC to avoid timezone shifts
   const totalHours = timespans.reduce((total, span) => {
@@ -141,17 +147,19 @@ export default function TimeSpanList({
           </Text>
           <Text size="xs" c="dimmed">{opened ? "▲" : "▼"}</Text>
         </Group>
-        {canCreate && (
+        {onCreate && (
           <ActionIcon
             variant="light"
-            color="blue"
+            color={isRunningForEntry ? "gray" : "blue"}
             onClick={(e) => {
               e.stopPropagation();
+              if (!canCreate) return;
               if (!opened) toggle();
               setIsAdding(true);
             }}
-            title="Add session"
+            title={isRunningForEntry ? "Stop the running session to add another" : "Add session"}
             aria-label="Add session"
+            disabled={!canCreate}
           >
             <IconPlus size={16} />
           </ActionIcon>

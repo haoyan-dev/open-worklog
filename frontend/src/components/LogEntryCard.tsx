@@ -120,7 +120,7 @@ export default function LogEntryCard({
 
             <Group gap="xs" wrap="nowrap" align="center">
               <Text fw={700} size="xl">
-                {displayHours.toFixed(1)}h
+                {displayHours.toFixed(2)}h
               </Text>
               <Tooltip label={expanded ? "Collapse" : "Expand"} withArrow>
                 <ActionIcon
@@ -192,6 +192,7 @@ export default function LogEntryCard({
                 <TimeSpanList
                   logEntryId={entry.id}
                   timespans={timespans}
+                  activeTimeSpan={currentActive}
                   onAdjust={onTimeSpanAdjust}
                   onUpdate={onTimeSpanUpdate}
                   onCreate={onTimeSpanCreate}

@@ -510,6 +510,7 @@ export default function App() {
                   void handleOpenByUuid(uuid);
                 }}
                 timespans={timespansMap[editingEntry.id] || []}
+                activeTimeSpan={activeTimeSpan}
                 onTimeSpanAdjust={(timespanId, hours) =>
                   adjustTimeSpanMutation.mutate({ timespanId, hours })
                 }

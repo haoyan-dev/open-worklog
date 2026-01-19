@@ -33,6 +33,7 @@ export default function LogEntryEditor({
   onCancel,
   onOpenByUuid,
   timespans = [],
+  activeTimeSpan,
   onTimeSpanAdjust,
   onTimeSpanUpdate,
   onTimeSpanCreate,
@@ -176,6 +177,7 @@ export default function LogEntryEditor({
                       <TimeSpanList
                         logEntryId={entry.id}
                         timespans={timespans}
+                        activeTimeSpan={activeTimeSpan}
                         collapsed={false}
                         onAdjust={onTimeSpanAdjust}
                         onUpdate={onTimeSpanUpdate}

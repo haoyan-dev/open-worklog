@@ -16,6 +16,11 @@ This guide describes how to run the backend and frontend locally without Docker.
 - `set DATABASE_URL=sqlite:///./app.db` (Windows PowerShell).
 - `uvicorn main:app --host 0.0.0.0 --port 8000`.
 
+### Backend tests
+
+- From `backend/`:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
 ## Local Frontend (Without Docker)
 
 - `cd frontend`.
