@@ -37,13 +37,7 @@ function buildEmptyStat(date: string): DailyStat {
 }
 
 function getCalendarDayProps(day: Date | string) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'getDayProps entry', data: { type: typeof day, isDate: day instanceof Date, hasGetDay: typeof (day as Date | undefined)?.getDay === 'function', value: String(day) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1' }) }).catch(() => { });
-  // #endregion
   const isDate = day instanceof Date;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'date type check', data: { isDate }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
-  // #endregion
   let resolved: Date | null = null;
   if (isDate) {
     resolved = day;
@@ -54,20 +48,11 @@ function getCalendarDayProps(day: Date | string) {
     }
   }
   const resolvedIsDate = resolved instanceof Date && !Number.isNaN(resolved.getTime());
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'resolved day', data: { resolvedIsDate, originalType: typeof day, resolvedType: typeof resolved }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H3' }) }).catch(() => { });
-  // #endregion
   if (!resolvedIsDate) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'unusable day value', data: { type: typeof day, constructor: (day as { constructor?: { name?: string } } | undefined)?.constructor?.name, value: String(day) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
-    // #endregion
     return {};
   }
   const resolvedDate = resolved as Date;
   const dow = resolvedDate.getDay(); // 0 = Sunday, 6 = Saturday
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:getCalendarDayProps', message: 'computed dow', data: { dow }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
-  // #endregion
   if (dow === 0) {
     return { style: { color: "var(--mantine-color-red-7)", fontWeight: 600 } };
   }
@@ -185,9 +170,6 @@ export default function WeekView() {
             value={anchorDate}
             onChange={(value) => {
               const isDate = isDateValue(value);
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9d07a6cc-c2b9-4935-9ed7-510d027f6df0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'WeekView.tsx:DateInput.onChange', message: 'date input change', data: { type: typeof value, isDate, value: String(value) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H5' }) }).catch(() => { });
-              // #endregion
               if (isDate) setAnchorDate(value);
             }}
             valueFormat="YYYY-MM-DD"
