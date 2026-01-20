@@ -116,7 +116,9 @@ def merge_connectable_timespans_for_entry(
         return
 
     span_likes = [
-        SpanLike(id=s.id, start_timestamp=s.start_timestamp, end_timestamp=s.end_timestamp)
+        SpanLike(
+            id=s.id, start_timestamp=s.start_timestamp, end_timestamp=s.end_timestamp
+        )
         for s in spans
     ]
     reference_now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -358,9 +360,24 @@ def build_weekly_report(
     next_week_plan: Optional[list[str]] = None,
 ) -> WeeklyReport:
     week_start, week_end = _week_bounds(week_anchor)
-    logs = get_logs_in_range(db, week_start, week_end)
-    entries = [_build_report_entry(entry) for entry in logs]
-    totals = _build_report_totals(entries)
+    # Accumulate the weekly report from daily reports so weekly data is consistent
+    # with the daily report generation path.
+    entries: list[ReportEntry] = []
+    total_hours = 0.0
+    by_category: dict[str, float] = {}
+
+    current = week_start
+    while current <= week_end:
+        daily = build_daily_report(db, current)
+        entries.extend(daily.entries)
+
+        total_hours += daily.totals.total_hours
+        for category_key, hours in daily.totals.by_category.items():
+            by_category[category_key] = by_category.get(category_key, 0.0) + hours
+
+        current = current + timedelta(days=1)
+
+    totals = ReportTotals(total_hours=total_hours, by_category=by_category)
 
     buckets: dict[str, list[ReportEntry]] = {
         "routine_work": [],

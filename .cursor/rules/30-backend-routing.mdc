@@ -1,0 +1,13 @@
+---
+description: Backend routing structure (prefer routes/* modules)
+globs:
+  - backend/**/*.py
+alwaysApply: false
+---
+
+# Backend routing (Option B)
+
+- Prefer adding new endpoints in `backend/routes/*.py` using `APIRouter`.
+- Ensure `backend/main.py` includes the router(s) so endpoints are reachable under `/api/v1/...`.
+- Avoid duplicating endpoints between `main.py` and `routes/*`.
+

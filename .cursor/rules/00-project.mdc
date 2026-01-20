@@ -1,0 +1,20 @@
+---
+description: Global instructions for AI agents working in this repo
+alwaysApply: true
+---
+
+# Open Worklog — AI editing rules
+
+## General
+
+- Follow existing patterns and file structure; avoid drive-by refactors.
+- Keep changes minimal and focused on the request.
+- Do not change API contracts casually; if you change a response/request shape, update both backend + frontend accordingly.
+- Avoid introducing new dependencies unless clearly necessary.
+- Do not add telemetry/debug ingestors (e.g. `fetch("http://127.0.0.1:.../ingest")`) or leave temporary debug scaffolding behind.
+
+## Time & timezone invariants (critical)
+
+- Backend stores timestamps as **naive UTC datetimes**; API serializes timestamps as ISO 8601 (typically with `Z`).
+- Frontend should treat backend timestamps as UTC and send timestamps with timezone info (prefer `Z`).
+

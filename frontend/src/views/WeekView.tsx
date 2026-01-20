@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Accordion, Alert, Button, Container, Divider, Group, Loader, Modal, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Accordion, Alert, Button, Container, Divider, Group, Loader, Modal, Stack, Text, Title } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 
 import { downloadWeeklyReport, fetchStats } from "../api";
@@ -65,10 +65,6 @@ function getCalendarDayProps(day: Date | string) {
 export default function WeekView() {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportAuthor, setExportAuthor] = useState("");
-  const [exportSummaryQualitative, setExportSummaryQualitative] = useState("");
-  const [exportSummaryQuantitative, setExportSummaryQuantitative] = useState("");
-  const [exportNextWeekPlan, setExportNextWeekPlan] = useState("");
 
   const weekStart = useMemo(() => getWeekStart(anchorDate), [anchorDate]);
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
@@ -238,65 +234,40 @@ export default function WeekView() {
       <Modal
         opened={exportOpen}
         onClose={() => setExportOpen(false)}
-        title="Weekly Report Details"
+        title="Download Weekly Report"
         centered
       >
-        <Stack gap="sm">
-          <TextInput
-            label="Author"
-            placeholder="Your name"
-            value={exportAuthor}
-            onChange={(event) => setExportAuthor(event.currentTarget.value)}
-          />
-          <Textarea
-            label="Summary (qualitative)"
-            placeholder="Highlights and insights"
-            minRows={2}
-            value={exportSummaryQualitative}
-            onChange={(event) => setExportSummaryQualitative(event.currentTarget.value)}
-          />
-          <Textarea
-            label="Summary (quantitative)"
-            placeholder="Metrics and totals"
-            minRows={2}
-            value={exportSummaryQuantitative}
-            onChange={(event) => setExportSummaryQuantitative(event.currentTarget.value)}
-          />
-          <Textarea
-            label="Next week plan"
-            placeholder="One item per line"
-            minRows={3}
-            value={exportNextWeekPlan}
-            onChange={(event) => setExportNextWeekPlan(event.currentTarget.value)}
-          />
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Text fw={600}>{rangeLabel}</Text>
+            <Text size="sm" c="dimmed">
+              The weekly report is generated automatically from daily reports. No manual
+              inputs are required.
+            </Text>
+          </Stack>
+
+          <Stack gap={6}>
+            <Text size="sm" fw={600}>
+              Included
+            </Text>
+            <Text size="sm" c="dimmed">
+              Totals, category breakdown, and all entries for the week.
+            </Text>
+          </Stack>
+
           <Group justify="flex-end">
-            <Button
-              variant="default"
-              onClick={() => {
-                setExportOpen(false);
-              }}
-            >
-              Cancel
+            <Button variant="default" onClick={() => setExportOpen(false)}>
+              Close
             </Button>
             <Button
               onClick={() => {
-                const nextWeekItems = exportNextWeekPlan
-                  .split("\n")
-                  .map((item) => item.trim())
-                  .filter(Boolean);
-                downloadWeeklyReport({
-                  weekStart: startDateString,
-                  author: exportAuthor || undefined,
-                  summaryQualitative: exportSummaryQualitative || undefined,
-                  summaryQuantitative: exportSummaryQuantitative || undefined,
-                  nextWeekPlan: nextWeekItems.length > 0 ? nextWeekItems : undefined,
-                }).catch((error) => {
+                downloadWeeklyReport({ weekStart: startDateString }).catch((error) => {
                   console.warn("[WeekView] Failed to download weekly report", error);
                 });
                 setExportOpen(false);
               }}
             >
-              Download
+              Download JSON
             </Button>
           </Group>
         </Stack>

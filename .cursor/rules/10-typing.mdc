@@ -1,0 +1,28 @@
+---
+description: Enforce strict typing (Python backend + TypeScript frontend)
+globs:
+  - backend/**/*.py
+  - frontend/**/*.ts
+  - frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Typing requirements
+
+## Backend (Python)
+
+- Use **type hints strictly** for all new/modified code.
+  - Every function must annotate **all parameters** and **return type**.
+  - Avoid `Any`. If unavoidable, keep it localized and justify via naming/comments.
+  - Use Python 3.11+ typing: `list[T]`, `dict[K, V]`, `T | None`, `Literal`, `TypedDict` (when appropriate).
+- Keep types aligned with:
+  - Pydantic models in `backend/schemas.py`
+  - SQLAlchemy models in `backend/models.py`
+
+## Frontend (TypeScript/React)
+
+- Use **explicit types** for all new/modified code.
+  - No implicit `any`; type component props and function signatures.
+  - Prefer `unknown` over `any`, then narrow with type guards.
+  - Keep shared shapes in `frontend/src/types.ts` (reuse rather than duplicating).
+
