@@ -87,7 +87,13 @@ def plan_connectable_timespan_merges(
         if prefer_timespan_id is not None:
             keeper = next((s for s in group if s.id == prefer_timespan_id), None)
         if keeper is None:
-            keeper = min(group, key=lambda s: s.id)
+            # If there's an open/running span in the group, keep it as the
+            # "keeper" so callers can continue referencing the active row.
+            open_spans = [s for s in group if s.end_timestamp is None]
+            if open_spans:
+                keeper = max(open_spans, key=lambda s: s.id)
+            else:
+                keeper = min(group, key=lambda s: s.id)
 
         merged_start = min(s.start_timestamp for s in group)
 
