@@ -1,287 +1,54 @@
-from datetime import date
-from typing import Optional
+from __future__ import annotations
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.encoders import jsonable_encoder
+import os
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from sqlalchemy.orm import Session
 
-import crud
-import models
-import schemas
-from db import Base, engine, ensure_schema, get_db
-
-Base.metadata.create_all(bind=engine)
-ensure_schema(engine)
-
-app = FastAPI(title="Open Worklog API", openapi_url="/api/v1/openapi.json")
+from db import Base, engine, ensure_schema
+from routes.logs import router as logs_router
+from routes.projects import router as projects_router
+from routes.reports import router as reports_router
+from routes.stats import router as stats_router
+from routes.timers import router as timers_router
+from routes.timespans import router as timespans_router
 
 
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+def create_app() -> FastAPI:
+    Base.metadata.create_all(bind=engine)
+    ensure_schema(engine)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    app = FastAPI(title="Open Worklog API", openapi_url="/api/v1/openapi.json")
 
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
-@app.get("/api/v1/logs/{log_date}", response_model=list[schemas.LogEntryRead])
-def get_logs_for_date(log_date: date, db: Session = Depends(get_db)):
-    return crud.get_logs_by_date(db, log_date)
-
-
-@app.get("/api/v1/logs/uuid/{log_uuid}", response_model=schemas.LogEntryRead)
-def get_log_by_uuid(log_uuid: str, db: Session = Depends(get_db)):
-    entry = crud.get_log_by_uuid(db, log_uuid)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return entry
-
-
-@app.get("/api/v1/stats", response_model=list[schemas.DailyStat])
-def get_stats(
-    start_date: date = Query(...),
-    end_date: date = Query(...),
-    db: Session = Depends(get_db),
-):
-    return crud.get_stats(db, start_date, end_date)
-
-
-@app.get("/api/v1/reports/daily", response_model=schemas.DailyReport)
-def export_daily_report(
-    report_date: date = Query(..., alias="date"),
-    db: Session = Depends(get_db),
-):
-    report = crud.build_daily_report(db, report_date)
-    filename = f"daily-report-{report_date.isoformat()}.json"
-    return JSONResponse(
-        content=jsonable_encoder(report),
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
+    app.include_router(logs_router, prefix="/api/v1")
+    app.include_router(stats_router, prefix="/api/v1")
+    app.include_router(reports_router, prefix="/api/v1")
+    app.include_router(timers_router, prefix="/api/v1")
+    app.include_router(timespans_router, prefix="/api/v1")
+    app.include_router(projects_router, prefix="/api/v1")
 
-@app.get("/api/v1/reports/weekly", response_model=schemas.WeeklyReport)
-def export_weekly_report(
-    week_start: date = Query(...),
-    author: Optional[str] = Query(None),
-    summary_qualitative: Optional[str] = Query(None),
-    summary_quantitative: Optional[str] = Query(None),
-    next_week_plan: Optional[list[str]] = Query(None),
-    db: Session = Depends(get_db),
-):
-    report = crud.build_weekly_report(
-        db,
-        week_start,
-        author=author,
-        summary_qualitative=summary_qualitative,
-        summary_quantitative=summary_quantitative,
-        next_week_plan=next_week_plan,
-    )
-    filename = f"weekly-report-{report.week_id}.json"
-    return JSONResponse(
-        content=jsonable_encoder(report),
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return app
 
 
-@app.post("/api/v1/logs", response_model=schemas.LogEntryRead)
-def create_log(log: schemas.LogEntryCreate, db: Session = Depends(get_db)):
-    return crud.create_log(db, log)
+app = create_app()
 
 
-@app.put("/api/v1/logs/{log_id}", response_model=schemas.LogEntryRead)
-def update_log(
-    log_id: int, log: schemas.LogEntryUpdate, db: Session = Depends(get_db)
-):
-    entry = crud.update_log(db, log_id, log)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return entry
-
-
-@app.delete("/api/v1/logs/{log_id}")
-def delete_log(log_id: int, db: Session = Depends(get_db)):
-    entry = crud.delete_log(db, log_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return {"deleted": True}
-
-
-# Timer API endpoints
-@app.post("/api/v1/timers/start", response_model=schemas.TimerRead)
-def start_timer(request: schemas.TimerStartRequest, db: Session = Depends(get_db)):
-    try:
-        return crud.create_timer(db, request)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/v1/timers/active", response_model=schemas.TimerRead | None)
-def get_active_timer(db: Session = Depends(get_db)):
-    return crud.get_active_timer(db)
-
-
-@app.post("/api/v1/timers/{timer_id}/pause", response_model=schemas.TimerRead)
-def pause_timer(timer_id: int, db: Session = Depends(get_db)):
-    timer = crud.pause_timer(db, timer_id)
-    if not timer:
-        raise HTTPException(status_code=404, detail="Timer not found")
-    return timer
-
-
-@app.post("/api/v1/timers/{timer_id}/resume", response_model=schemas.TimerRead)
-def resume_timer(timer_id: int, db: Session = Depends(get_db)):
-    timer = crud.resume_timer(db, timer_id)
-    if not timer:
-        raise HTTPException(status_code=404, detail="Timer not found")
-    return timer
-
-
-@app.post("/api/v1/timers/{timer_id}/stop", response_model=schemas.LogEntryRead)
-def stop_timer(timer_id: int, db: Session = Depends(get_db)):
-    entry = crud.stop_timer(db, timer_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Timer not found")
-    return entry
-
-
-@app.delete("/api/v1/timers/{timer_id}")
-def cancel_timer(timer_id: int, db: Session = Depends(get_db)):
-    timer = crud.delete_timer(db, timer_id)
-    if not timer:
-        raise HTTPException(status_code=404, detail="Timer not found")
-    return {"deleted": True}
-
-
-# Running (open) TimeSpan lifecycle endpoints
-@app.get("/api/v1/timespans/active", response_model=schemas.TimeSpanRead | None)
-def get_active_timespan(db: Session = Depends(get_db)):
-    return crud.get_active_timespan(db)
-
-
-@app.post("/api/v1/timespans/start", response_model=schemas.TimeSpanRead)
-def start_timespan(request: schemas.TimeSpanStartRequest, db: Session = Depends(get_db)):
-    # Start on an existing entry
-    if request.log_entry_id is not None:
-        timespan = crud.start_timespan_for_entry(db, request.log_entry_id)
-        if not timespan:
-            raise HTTPException(status_code=404, detail="Log entry not found")
-        return timespan
-
-    # Otherwise create a new entry then start
-    if not all([request.date, request.category, request.project_id, request.task]):
-        raise HTTPException(
-            status_code=400,
-            detail="Missing required fields: provide log_entry_id OR (date, category, project_id, task)",
-        )
-
-    new_entry = models.LogEntry(
-        date=request.date,
-        category=request.category,
-        project_id=request.project_id,
-        task=request.task,
-        hours=0.0,
-        additional_hours=0.0,
-        status="Completed",
-    )
-    db.add(new_entry)
-    db.commit()
-    db.refresh(new_entry)
-
-    timespan = crud.start_timespan_for_entry(db, new_entry.id)
-    if not timespan:
-        raise HTTPException(status_code=500, detail="Failed to start session")
-    return timespan
-
-
-@app.post("/api/v1/timespans/{timespan_id}/pause", response_model=schemas.TimeSpanRead)
-def pause_timespan(timespan_id: int, db: Session = Depends(get_db)):
-    timespan = crud.end_timespan(db, timespan_id)
-    if not timespan:
-        raise HTTPException(status_code=404, detail="TimeSpan not found")
-    return timespan
-
-
-# TimeSpan API endpoints
-@app.get("/api/v1/logs/{log_id}/timespans", response_model=list[schemas.TimeSpanRead])
-def get_timespans(log_id: int, db: Session = Depends(get_db)):
-    entry = crud.get_log(db, log_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return crud.get_timespans_for_entry(db, log_id)
-
-
-@app.post("/api/v1/logs/{log_id}/timespans", response_model=schemas.TimeSpanRead)
-def create_timespan(
-    log_id: int,
-    request: schemas.TimeSpanCreateRequest,
-    db: Session = Depends(get_db),
-):
-    timespan = crud.create_timespan_for_entry(db, log_id, request.start_timestamp, request.end_timestamp)
-    if not timespan:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return timespan
-
-
-@app.post("/api/v1/timespans/{timespan_id}/adjust", response_model=schemas.TimeSpanRead)
-def adjust_timespan(
-    timespan_id: int,
-    request: schemas.TimeSpanAdjustRequest,
-    db: Session = Depends(get_db),
-):
-    timespan = crud.adjust_timespan(db, timespan_id, request.hours)
-    if not timespan:
-        raise HTTPException(status_code=404, detail="TimeSpan not found")
-    return timespan
-
-
-@app.put("/api/v1/timespans/{timespan_id}", response_model=schemas.TimeSpanRead)
-def update_timespan(
-    timespan_id: int,
-    request: schemas.TimeSpanUpdate,
-    db: Session = Depends(get_db),
-):
-    timespan = crud.update_timespan(db, timespan_id, request)
-    if not timespan:
-        raise HTTPException(status_code=404, detail="TimeSpan not found")
-    return timespan
-
-
-@app.delete("/api/v1/timespans/{timespan_id}")
-def delete_timespan(timespan_id: int, db: Session = Depends(get_db)):
-    deleted = crud.delete_timespan(db, timespan_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="TimeSpan not found")
-    return {"deleted": True}
-
-
-# Project API endpoints
-@app.get("/api/v1/projects", response_model=list[schemas.ProjectRead])
-def get_projects(
-    search: Optional[str] = Query(None, description="Search term to filter projects by name"),
-    db: Session = Depends(get_db),
-):
-    return crud.get_projects(db, search)
-
-
-@app.post("/api/v1/projects", response_model=schemas.ProjectRead)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    try:
-        return crud.create_project(db, project)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/v1/projects/{project_id}", response_model=schemas.ProjectRead)
-def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = crud.get_project(db, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
